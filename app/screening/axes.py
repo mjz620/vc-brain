@@ -51,8 +51,19 @@ def founder_summary(conn, founder_id: str) -> str:
         "LEFT JOIN resolutions r ON r.signal_id = s.id "
         "WHERE r.founder_id = ? OR s.founder_id = ?", (founder_id, founder_id)).fetchall()
     lines = [f"- [{s['source']}] {s['content']}" for s in sigs]
+    # Persistent Founder Score is ONE INPUT into the Founder axis, not a substitute
+    # for the per-opportunity score (brief FAQ 6).
+    from ..memory import founder_score as fs_mod
+    fs = fs_mod.stored(conn, founder_id)
+    fs_line = ""
+    if fs:
+        latest = fs["history"][-1]
+        fs_line = (f"Persistent Founder Score (cross-application input, distinct from "
+                   f"this screen): {latest['score']}/10, dimensions {fs.get('dimensions')}, "
+                   f"record coverage {fs.get('coverage', 0):.0%}, "
+                   f"{len(fs['history'])} history points\n")
     return (f"Founder: {row['name'] if row else founder_id}\nEntity keys: {keys}\n"
-            f"Signals ({len(lines)}):\n" + "\n".join(lines))
+            f"{fs_line}Signals ({len(lines)}):\n" + "\n".join(lines))
 
 
 def score_axis(conn, founder_id: str, axis: str, thesis: thesis_mod.Thesis,

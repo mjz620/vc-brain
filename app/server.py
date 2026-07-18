@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config, instrument
 from .decision import decision as dec
-from .memory import db, ingest
+from .memory import db, founder_score, ingest
 from .screening import axes as axes_mod
 from .screening import thesis as thesis_mod
 
@@ -61,16 +61,18 @@ def founders(thesis: str | None = None):
         has_memo = conn.execute("SELECT 1 FROM memos WHERE founder_id=? LIMIT 1",
                                 (fid,)).fetchone() is not None
         lat = instrument.latency_strip(conn, fid)
-        # signal / coverage split (spec §3): max axis score + mean coverage
-        scored = [a for a in axes if "score" in a]
-        signal = max((a["score"] for a in scored), default=0)
-        coverage = (sum(a["coverage"] for a in scored) / len(scored)) if scored else 0
+        # Signal / Coverage split (spec §3): Signal = persistent Founder Score
+        # (evidence-derived, deterministic); Coverage = fraction of the record's
+        # informational areas with >=1 claim. NOT derived from the 3 axes.
+        cur = founder_score.compute(conn, fid)
+        st = founder_score.stored(conn, fid)
         out.append({"id": fid, "name": name["name"] if name else fid,
                     "source": _source_of(conn, fid), "axes": axes,
-                    "signal": round(signal, 1), "coverage": round(coverage, 2),
+                    "signal": cur["score"], "coverage": cur["coverage"],
+                    "score_history_points": len(st["history"]) if st else 0,
                     "has_memo": has_memo, "latency_total": lat["total_seconds"]})
-    # rank by signal desc (unblended axes stay separate in the payload)
-    out.sort(key=lambda f: f["signal"], reverse=True)
+    # rank by Founder Score desc (unblended axes stay separate in the payload)
+    out.sort(key=lambda f: f["signal"] or 0, reverse=True)
     return out
 
 
@@ -107,7 +109,10 @@ def sourcing(thesis: str | None = None):
                          (r["fid"],)).fetchone()
         blob = (r["blob"] or "").lower()
         topic_match = sum(1 for tp in t.topics if tp.lower() in blob)
+        cur = founder_score.compute(conn, r["fid"])
         out.append({"id": r["fid"], "name": f["name"] if f else r["fid"],
+                    "signal": cur["score"], "coverage": cur["coverage"],
+                    "dimensions": cur["dimensions"],
                     "entity_keys": json.loads(f["entity_keys"]) if f else {},
                     "sources": (r["sources"] or "").split(","),
                     "signal_count": r["n"], "latest_signal_at": r["latest"],

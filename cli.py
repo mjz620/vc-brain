@@ -92,8 +92,20 @@ def cmd_scan(args) -> None:
               f"{result['founders']} founders; {len(result['dropped'])} "
               f"drop-logged {reasons}")
 
+        # Persistent Founder Score: append a history point for founders whose record
+        # just changed (deterministic, no LLM — cheap on every scan).
+        from datetime import datetime, timezone
+
+        from app.memory import founder_score
+        fresh_all = scanner.newly_resolved_founders(conn, result["new_signal_ids"])
+        now = datetime.now(timezone.utc).isoformat()
+        for fid, _ in fresh_all:
+            founder_score.recompute(conn, fid, "scan", now=now)
+        if fresh_all:
+            print(f"[founder-score] appended history point for {len(fresh_all)} founders")
+
         if args.watch:
-            fresh = scanner.newly_resolved_founders(conn, result["new_signal_ids"])
+            fresh = fresh_all
             print(f"[watch] {len(fresh)} founders gained signals this round")
             if fresh and not replay and llm.provider() is None:
                 print("[watch] no LLM key — skipping conviction screening")
@@ -114,6 +126,34 @@ def cmd_scan(args) -> None:
         if args.watch and rnd < rounds:
             print(f"[watch] sleeping {args.interval}s")
             _time.sleep(args.interval)
+
+
+def cmd_velocity(args) -> None:
+    """Cold-start instrument: fetch trailing-6-week commit cadence for the top
+    thesis-matched GitHub founders, ingest as signals, recompute Founder Scores."""
+    from datetime import datetime, timezone
+
+    from app.memory import founder_score
+    from app.sources import velocity
+
+    replay = config.replay_enabled(args.replay)
+    conn = db.connect()
+    db.init_db(conn)
+    rows = conn.execute(
+        "SELECT r.founder_id fid, COUNT(*) n FROM resolutions r "
+        "JOIN signals s ON s.id = r.signal_id WHERE s.source='github' "
+        "GROUP BY r.founder_id ORDER BY n DESC LIMIT ?", (args.top,)).fetchall()
+    now = datetime.now(timezone.utc).isoformat()
+    for r in rows:
+        try:
+            v = velocity.fetch(conn, r["fid"], replay=replay)
+        except Exception as e:  # rate limit / replay miss on one repo: keep going
+            print(f"[velocity] {r['fid']}: skipped ({type(e).__name__}: {e})")
+            continue
+        if v:
+            cur = founder_score.recompute(conn, r["fid"], "velocity", now=now)
+            print(f"[velocity] {r['fid']}: {v['commits_6w']} commits / "
+                  f"{v['active_days']} active days (6w) -> score {cur['score']}")
 
 
 def cmd_activate(args) -> None:
@@ -226,6 +266,9 @@ def main() -> None:
     p_scan.add_argument("--max-screens", type=int, default=3,
                         help="max founders screened per watch round")
     p_scan.set_defaults(func=cmd_scan)
+    p_vel = sub.add_parser("velocity", help="fetch commit cadence for top GitHub founders")
+    p_vel.add_argument("--top", type=int, default=15)
+    p_vel.set_defaults(func=cmd_velocity)
     p_act = sub.add_parser("activate", help="draft outreach citing the triggering signal")
     p_act.add_argument("--founder", required=True)
     p_act.add_argument("--thesis", default="config/thesis_preseed_ai_infra.yaml")

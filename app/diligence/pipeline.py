@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timezone
 
 from .. import instrument
-from ..memory import ingest
+from ..memory import founder_score, ingest
 from ..screening import thesis as thesis_mod
 from . import adjudicate, critic, debate, ledger, loader, synthesizer, workers
 
@@ -44,9 +44,12 @@ def run_diligence(conn, founder_id: str, thesis, *, replay: bool) -> dict:
                                                   verdict.stance)
             adjudicate.store(conn, founder_id, c.id, pros, deff, verdict)
 
-    # 3. Persist the adjudicated ledger.
+    # 3. Persist the adjudicated ledger, then append a Founder Score history point —
+    # diligence changed the record (integrity + coverage move with the claims).
     for c in claims:
         ingest.store_claim(conn, founder_id, c)
+    founder_score.recompute(conn, founder_id, "diligence",
+                            now=datetime.now(timezone.utc).isoformat())
 
     # 4. Decision-layer debate -> recommendation.
     with instrument.stage(conn, founder_id, "debate"):
