@@ -79,6 +79,32 @@ CREATE TABLE IF NOT EXISTS axis_scores (
 );
 CREATE INDEX IF NOT EXISTS idx_axis_founder ON axis_scores(founder_id, axis);
 
+-- Adjudication verdicts (fact-layer debate): the Judge's tier/trust decision on a
+-- contested claim, with the prosecution/defense it turned on. Append-only audit trail.
+CREATE TABLE IF NOT EXISTS adjudications (
+    founder_id  TEXT NOT NULL REFERENCES founders(id),
+    claim_id    TEXT NOT NULL,
+    prosecution TEXT NOT NULL,
+    defense     TEXT NOT NULL,
+    corroboration TEXT NOT NULL,   -- Judge-set tier
+    trust       REAL NOT NULL,     -- Judge-set trust
+    rationale   TEXT NOT NULL,
+    decided_at  TEXT NOT NULL
+);
+
+-- Final memo + recommendation from the diligence pipeline (decision-layer debate).
+CREATE TABLE IF NOT EXISTS memos (
+    founder_id     TEXT NOT NULL REFERENCES founders(id),
+    thesis         TEXT NOT NULL,
+    decision       TEXT NOT NULL,          -- invest | pass | conditional
+    recommendation TEXT NOT NULL,          -- JSON (structured recommendation)
+    memo_md        TEXT NOT NULL,          -- the memo (markdown, cites claim ids)
+    bull           TEXT NOT NULL,
+    bear           TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    PRIMARY KEY (founder_id, thesis)
+);
+
 -- First-pass kill screen (spec §2.3): log why a non-viable opportunity was killed.
 CREATE TABLE IF NOT EXISTS kill_log (
     founder_id TEXT NOT NULL,

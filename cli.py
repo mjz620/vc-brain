@@ -7,9 +7,8 @@ Block 1 exposes:
 Later blocks add: scan, screen, diligence, memo.
 """
 import argparse
-import os
 
-from app import config
+from app import config, llm
 from app.memory import db, ingest, resolve
 from app.memory.models import Claim, Founder, Signal
 from app.screening import axes as axes_mod
@@ -103,10 +102,9 @@ def cmd_screen(args) -> None:
     replay = config.replay_enabled(args.replay)
     conn = db.connect()
     db.init_db(conn)
-    if not replay and not (os.environ.get("ANTHROPIC_API_KEY")
-                           or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
-        print("screen makes live LLM calls — export ANTHROPIC_API_KEY first "
-              "(then re-run with --replay to reuse the cached run).")
+    if not replay and llm.provider() is None:
+        print("screen makes live LLM calls — set OPENAI_API_KEY (or ANTHROPIC_API_KEY) "
+              "first (then re-run with --replay to reuse the cached run).")
         return
     thesis = thesis_mod.load_thesis(args.thesis)
     founder_id = args.founder or _pick_founder(conn)
@@ -125,6 +123,28 @@ def cmd_screen(args) -> None:
     print("  (three axes shown side by side; no blended score by design)")
 
 
+def cmd_diligence(args) -> None:
+    """Full diligence on a fixture founder: workers -> ledger -> adjudication debate ->
+    recommendation debate -> synthesizer -> validator + critic -> memo."""
+    replay = config.replay_enabled(args.replay)
+    conn = db.connect()
+    db.init_db(conn)
+    if not replay and llm.provider() is None:
+        print("diligence makes live LLM calls — set OPENAI_API_KEY (or ANTHROPIC_API_KEY).")
+        return
+    from app.diligence import loader, pipeline
+    founder_id = loader.load_fixture(conn, args.fixture, replay=replay)
+    thesis = thesis_mod.load_thesis(args.thesis)
+    result = pipeline.run_diligence(conn, founder_id, thesis, replay=replay)
+    v = result["violations"]
+    print(f"\n=== Diligence: {founder_id} | {thesis.name} ===")
+    print(f"claims={result['claims']} contested(adjudicated)={result['contested']} "
+          f"decision={result['recommendation'].decision} "
+          f"validator_clean={v.ok} (unknown_ids={v.unknown_ids})")
+    if args.print_memo:
+        print("\n" + result["memo"])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="vc-brain")
     parser.add_argument("--replay", action="store_true", help="read only from cache")
@@ -140,6 +160,11 @@ def main() -> None:
     p_screen.add_argument("--founder", help="founder id (default: most-signalled)")
     p_screen.add_argument("--thesis", default="config/thesis_preseed_ai_infra.yaml")
     p_screen.set_defaults(func=cmd_screen)
+    p_dil = sub.add_parser("diligence", help="full diligence + memo on a fixture founder")
+    p_dil.add_argument("--fixture", default="founder_b_corevance")
+    p_dil.add_argument("--thesis", default="config/thesis_preseed_ai_infra.yaml")
+    p_dil.add_argument("--print-memo", action="store_true", help="print the full memo")
+    p_dil.set_defaults(func=cmd_diligence)
 
     args = parser.parse_args()
     args.func(args)

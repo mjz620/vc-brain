@@ -17,6 +17,24 @@ MODEL_TIERS = {
     "critic": "claude-opus-4-8",
 }
 
+# OpenAI model tiers (used when OPENAI_API_KEY is present). Env-overridable so you can
+# point tiers at whatever your account has, without touching code:
+#   OPENAI_MODEL=<id>                       -> one model for every tier
+#   OPENAI_MODEL_SCREEN / _WORKER / _SYNTH  -> per-tier override
+_OPENAI_DEFAULTS = {"screen": "gpt-4o-mini", "resolve": "gpt-4o-mini",
+                    "worker": "gpt-4o-mini", "synth": "gpt-4o", "critic": "gpt-4o"}
+_OPENAI_ENV = {"screen": "OPENAI_MODEL_SCREEN", "resolve": "OPENAI_MODEL_SCREEN",
+               "worker": "OPENAI_MODEL_WORKER", "synth": "OPENAI_MODEL_SYNTH",
+               "critic": "OPENAI_MODEL_SYNTH"}
+
+
+def openai_model(tier: str) -> str:
+    if all_models := os.environ.get("OPENAI_MODEL"):
+        return all_models
+    env_key = _OPENAI_ENV.get(tier)
+    return (os.environ.get(env_key) if env_key else None) or _OPENAI_DEFAULTS.get(tier, "gpt-4o")
+
+
 # Reference "today" for the demo fixtures (spec §4).
 DEMO_TODAY = "2026-07-18"
 

@@ -5,6 +5,7 @@ description = "Evidence-first sourcing & diligence engine (hackathon)"
 requires-python = ">=3.13"
 dependencies = [
     "anthropic",
+    "openai",
     "pydantic>=2",
     "fastapi",
     "uvicorn",
