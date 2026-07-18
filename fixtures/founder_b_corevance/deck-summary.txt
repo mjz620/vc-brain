@@ -1,0 +1,37 @@
+COREVANCE — Seed Deck (summary slides)
+Applicant: Devin Marsh · Contact: devin@corevance.example · Submitted: 2026-07-18
+Raising: $1,500,000 seed
+
+--- SLIDE 1 · Company ---
+Corevance is an AI copilot that drafts and maintains SOC 2 / ISO 27001 compliance
+evidence for mid-market software companies. Connect your cloud infra; Corevance
+drafts the evidence artifacts and flags drift between your controls and reality.
+
+--- SLIDE 2 · Founder ---
+Devin Marsh, Founder & CEO.
+Previously: Infrastructure Engineer at Stripe (2017–2020).
+Prior startup: DataLoom (data-pipeline tooling). Founded March 2019; served as
+full-time CEO. DataLoom raised a $4M seed and was acquired by Cisco in 2021.
+
+--- SLIDE 3 · Problem ---
+Mid-market companies spend hundreds of hours per year assembling audit evidence.
+The work is manual, repetitive, and error-prone; controls drift out of compliance
+between audits and nobody notices until the next one.
+
+--- SLIDE 4 · Product ---
+Corevance connects to cloud infrastructure, drafts evidence artifacts automatically,
+and continuously flags drift between documented controls and observed reality.
+Live today. Design partners: Northwind Systems, Halcyon Labs.
+
+--- SLIDE 5 · Traction ---
+ARR: $480K
+Customers: 14
+(Churn, CAC, sales cycle, usage metrics: not included in this deck.)
+
+--- SLIDE 6 · Market ---
+Compliance automation is a large, budgeted category. Incumbents (Vanta, Drata) are
+checklist-oriented; Corevance's agentic evidence drafting is the wedge.
+
+--- SLIDE 7 · Round ---
+Raising $1.5M seed to expand the engineering team and reach 50 customers.
+(Cap table, detailed financials, P&L: not included in this deck.)

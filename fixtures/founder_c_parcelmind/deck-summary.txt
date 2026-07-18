@@ -1,0 +1,38 @@
+PARCELMIND — Seed Deck (summary slides)
+Applicants: Priya Anand, Marcus Ohl · Contact: founders@parcelmind.example · Submitted: 2026-07-18
+Raising: $1,200,000 seed · Claimed runway: 18 months
+
+--- SLIDE 1 · Company ---
+Parcelmind automates freight-quote comparison and carrier negotiation for mid-size
+shippers. Equivalent quotes across carriers vary severalfold, and procurement today
+is manual and slow. We ingest shipment specs, collect quotes, and negotiate within
+guardrails the shipper sets.
+
+--- SLIDE 2 · Founders ---
+Priya Anand — 5 years in freight procurement at a TMS vendor / FreightWaves ecosystem.
+Marcus Ohl — 4 years building carrier-rate systems; named inventor on a dynamic
+carrier rate-negotiation patent.
+Combined ~9 years in freight and TMS.
+
+--- SLIDE 3 · Problem ---
+Mid-size shippers overpay because comparing carrier quotes is manual, and they lack
+the leverage and time to negotiate. Enterprise shippers have TMS teams; mid-market
+does not.
+
+--- SLIDE 4 · Product ---
+Live today. API integrations with two major TMS platforms: MercuryGate and Blue
+Yonder TMS. Parcelmind ingests specs, collects quotes, and negotiates within
+shipper-set guardrails.
+
+--- SLIDE 5 · Traction ---
+12 customers. $40K ACV. Committed pipeline growing month over month.
+(Growth trajectory and unit economics not broken out in this deck.)
+
+--- SLIDE 6 · Market ---
+Incumbents serve enterprise shippers; the mid-market is underserved. Logistics sales
+cycles are long but contracts are sticky once integrated.
+
+--- SLIDE 7 · Round ---
+Raising $1.2M for an 18-month runway to reach 40 customers and add two more TMS
+integrations.
+(Cap table and detailed financials not included in this deck.)

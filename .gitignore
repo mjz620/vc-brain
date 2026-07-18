@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# VC Brain runtime artifacts (created by later blocks)
+vc_brain.db
+app/cache/live/
+
+# OS
+.DS_Store
