@@ -1,0 +1,9 @@
+anthropic
+pydantic>=2
+fastapi
+uvicorn
+httpx
+pyyaml
+
+[dev]
+pytest
