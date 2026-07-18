@@ -27,9 +27,12 @@ def _ledger(claims) -> str:
                      f"{c.stance}: {c.text}  (src {c.source_url})" for c in claims)
 
 
-def synthesize(claims, rec, bull, bear, thesis_lens: str, *, replay: bool) -> str:
+def synthesize(claims, rec, bull, bear, thesis_lens: str, *, score_line: str = "",
+               replay: bool) -> str:
     user = (f"{thesis_lens}\n\n--- Claim ledger (cite these ids only) ---\n{_ledger(claims)}\n\n"
             f"--- Recommendation ---\n{rec.model_dump()}\n\n"
+            f"--- Signal/Coverage (computed; include verbatim in Recommendation) ---\n"
+            f"{score_line or 'not computed'}\n\n"
             f"--- Bull case ---\n{bull}\n\n--- Bear case ---\n{bear}\n\nWrite the memo.")
     return llm.call("synth", load_prompt("synthesizer", _DEFAULT), user, MemoOut,
                     replay=replay, max_tokens=3500).markdown

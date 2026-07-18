@@ -20,8 +20,8 @@ _VELOCITY = re.compile(r"velocity: commits_6w=(\d+) active_days=(\d+)")
 _OUTBOUND = ("github", "hn", "arxiv", "producthunt", "yc")
 
 # dimension -> weight in the composite (renormalized over assessed dimensions)
-WEIGHTS = {"execution_velocity": 0.4, "community_pull": 0.3,
-           "domain_breadth": 0.1, "integrity": 0.2}
+WEIGHTS = {"execution_velocity": 0.35, "community_pull": 0.25, "domain_breadth": 0.1,
+           "integrity": 0.15, "verified_depth": 0.15}
 
 # Record-coverage checklist: the memo's informational areas. coverage = evidenced/13.
 # A contradicted claim still covers its area (evidence was gathered; it just failed).
@@ -67,13 +67,18 @@ def dimensions(signals: list[dict], claims) -> dict[str, float | None]:
     srcs = {s["source"] for s in signals if s["source"] in _OUTBOUND}
     breadth = round(min(10.0, 2 + 2 * len(srcs)), 1) if srcs else None
 
-    integrity = None
+    integrity = depth = None
     if claims:
         contradicted = sum(1 for c in claims if c.corroboration == "contradicted")
         integrity = round(10 * (1 - contradicted / len(claims)), 1)
+        # verified_depth: how much of the record is externally corroborated — keeps an
+        # inbound founder's composite from collapsing to the integrity dimension alone.
+        corr = sum(1 for c in claims if c.corroboration == "corroborated")
+        depth = round(10 * corr / len(claims), 1)
 
     return {"execution_velocity": vel, "community_pull": pull,
-            "domain_breadth": breadth, "integrity": integrity}
+            "domain_breadth": breadth, "integrity": integrity,
+            "verified_depth": depth}
 
 
 def coverage_of(claims) -> float:

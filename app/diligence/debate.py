@@ -23,8 +23,13 @@ _JUDGE = ("You are the investment judge. Given the ledger, the bull case, and th
 
 
 def _ledger_brief(claims) -> str:
-    return "\n".join(f"[{c.id}] {c.axis} · trust {c.trust:.2f} · {c.corroboration} · "
-                     f"{c.stance}: {c.text}" for c in claims)
+    tiers: dict[str, int] = {}
+    for c in claims:
+        tiers[c.corroboration] = tiers.get(c.corroboration, 0) + 1
+    counts = ", ".join(f"{k}={v}" for k, v in sorted(tiers.items()))
+    return (f"Mechanical tier counts: {counts}\n" +
+            "\n".join(f"[{c.id}] {c.axis} · trust {c.trust:.2f} · {c.corroboration} · "
+                      f"{c.stance}: {c.text}" for c in claims))
 
 
 def _turn(name, default, prompt, valid_ids, *, replay) -> str:

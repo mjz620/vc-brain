@@ -13,6 +13,7 @@ from ..memory.models import Founder, Signal
 
 # Fixture dir -> (founder_id, display name). Inbound demo founders.
 FIXTURES = {
+    "founder_a_tracewell": ("founder-tracewell", "nferris / Tracewell"),
     "founder_b_corevance": ("founder-corevance", "Devin Marsh / Corevance"),
     "founder_c_parcelmind": ("founder-parcelmind", "Anand & Ohl / Parcelmind"),
 }

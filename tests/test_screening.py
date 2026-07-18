@@ -77,8 +77,10 @@ def test_first_pass_kill_logs_reason_and_skips_axes(conn, monkeypatch):
     assert conn.execute("SELECT COUNT(*) c FROM axis_scores").fetchone()["c"] == 0
 
 
-def test_prompt_stub_falls_back_to_default():
-    # human-owned stub files exist but are unfilled -> embedded default used
+def test_prompt_loading():
     from app.promptlib import load_prompt
+    # filled prompt files take over from the embedded default...
     out = load_prompt("rubric_founder", "EMBEDDED_DEFAULT")
-    assert out == "EMBEDDED_DEFAULT"
+    assert out != "EMBEDDED_DEFAULT" and "FOUNDER axis" in out
+    # ...and a missing/unfilled prompt still falls back
+    assert load_prompt("no_such_prompt", "EMBEDDED_DEFAULT") == "EMBEDDED_DEFAULT"

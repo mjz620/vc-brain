@@ -48,8 +48,10 @@ def run_diligence(conn, founder_id: str, thesis, *, replay: bool) -> dict:
     # diligence changed the record (integrity + coverage move with the claims).
     for c in claims:
         ingest.store_claim(conn, founder_id, c)
-    founder_score.recompute(conn, founder_id, "diligence",
-                            now=datetime.now(timezone.utc).isoformat())
+    fs = founder_score.recompute(conn, founder_id, "diligence",
+                                 now=datetime.now(timezone.utc).isoformat())
+    score_line = (f"Signal {fs['score']} / Coverage {fs['coverage']:.0%}"
+                  if fs["score"] is not None else "")
 
     # 4. Decision-layer debate -> recommendation.
     with instrument.stage(conn, founder_id, "debate"):
@@ -57,7 +59,8 @@ def run_diligence(conn, founder_id: str, thesis, *, replay: bool) -> dict:
 
     # 5. Synthesize the memo, then the grounding guard + one critic revision.
     with instrument.stage(conn, founder_id, "synthesize"):
-        memo = synthesizer.synthesize(claims, rec, bull, bear, lens, replay=replay)
+        memo = synthesizer.synthesize(claims, rec, bull, bear, lens,
+                                      score_line=score_line, replay=replay)
         memo, viol = critic.finalize(memo, valid_ids, replay=replay)
 
     _store_memo(conn, founder_id, thesis.name, rec, memo, bull, bear)
