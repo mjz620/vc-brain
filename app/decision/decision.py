@@ -19,12 +19,16 @@ GAP_FIELDS = {
     "Usage metrics": ["dau", "active users", "usage metric", "usage metrics"],
 }
 GAP_PHRASE = "not disclosed"
+# A claim that itself SAYS the field is missing must not count as disclosure.
+_GAPPY = ("not disclosed", "not applicable", "unavailable", "not derivable",
+          "not included", "no external corroboration", "not provided", "missing")
 
 
 def gap_report(claims) -> list[dict]:
     """For each required field: present (cite claim ids) or a gap rendered as the brief's
     phrase. The gap branch NEVER emits a value — only the fixed phrase."""
-    texts = [(c.id, c.text.lower()) for c in claims]
+    texts = [(c.id, c.text.lower()) for c in claims
+             if not any(g in c.text.lower() for g in _GAPPY)]
     report = []
     for field, kws in GAP_FIELDS.items():
         hits = [cid for cid, t in texts if any(k in t for k in kws)]

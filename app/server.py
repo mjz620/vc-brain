@@ -261,6 +261,48 @@ def outreach(founder_id: str):
              "triggering_signal": r["content"]} for r in rows]
 
 
+@app.post("/api/activate/{founder_id}")
+def activate_founder(founder_id: str, thesis: str | None = None):
+    """Draft Activate outreach citing the triggering signal (cached => replay-safe)."""
+    from . import activate as activate_mod
+    from . import llm as llm_mod
+    conn = _conn()
+    t = _thesis(thesis)
+    if llm_mod.provider() is None and not config.replay_enabled(None):
+        raise HTTPException(409, "no LLM key and not in replay — cannot draft")
+    try:
+        d = activate_mod.draft(conn, founder_id, t.name,
+                               replay=config.replay_enabled(None))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return {"subject": d.subject, "body": d.body,
+            "cited_signal_url": d.cited_signal_url}
+
+
+class ThesisConfig(BaseModel):
+    name: str
+    sectors: list[str]
+    stage: str
+    geography: list[str]
+    check_size_usd: int
+    ownership_target_pct: float
+    risk_appetite: str
+    topics: list[str]
+
+
+@app.post("/api/thesis")
+def save_thesis(body: ThesisConfig):
+    """Thesis Engine is configurable (brief FAQ 15): persist an investor-edited
+    thesis as a YAML config next to the built-ins."""
+    import re as _re
+
+    import yaml
+    slug = _re.sub(r"[^a-z0-9]+", "_", body.name.lower()).strip("_") or "custom"
+    path = config.ROOT / "config" / f"thesis_{slug}.yaml"
+    path.write_text(yaml.safe_dump(body.model_dump(), sort_keys=False))
+    return {"file": f"config/{path.name}", "name": body.name}
+
+
 @app.get("/api/killed")
 def killed():
     conn = _conn()
