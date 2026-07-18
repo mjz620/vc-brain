@@ -111,6 +111,9 @@ def cmd_screen(args) -> None:
     if not founder_id:
         print("no resolved founders in Memory — run `scan` first")
         return
+    if not conn.execute("SELECT 1 FROM founders WHERE id=?", (founder_id,)).fetchone():
+        print(f"unknown founder '{founder_id}' — not in Memory")
+        return
 
     result = axes_mod.screen(conn, founder_id, thesis, replay=replay)
     print(f"\n=== Screen: {founder_id} | thesis: {result['thesis']} ===")
