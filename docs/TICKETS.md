@@ -72,6 +72,25 @@ this is mostly UI + a `run_id` dimension.
 
 ---
 
+## T-07 · LinkedIn-grade signal via compliant channels (NOT scraping) · `backlog`
+
+**What:** Capture LinkedIn-type signal (employment history, tenure, education, job changes) — high-signal,
+but **never** by scraping. Ingest it through channels that don't violate ToS:
+- **Founder-supplied:** pasted profile text or a LinkedIn data export the applicant uploads with their deck.
+- **Official API / partner data** if/when a partnership exists.
+- **Founder-listed URL as a pointer**, used only to know *what to verify* against dated primary sources.
+
+**Why not scraping (settled):** it's a spec guardrail (§2.2) + a Block 2 gate; ToS-prohibited and
+bot-walled (*hiQ v. LinkedIn*); and it's the pedigree/network surface the equitable-allocation thesis
+corrects against (brief FAQ 10). A test already asserts no `linkedin` scraper module exists.
+
+**How it fits the existing model:** LinkedIn-derived facts enter as `source_type` deck/web claims with
+`corroboration=self_reported` (trust capped 0.6), then get cross-verified against talks/patents/Form D —
+exactly the Corevance contradiction demo (Stripe tenure vs. DataLoom founding overlap). No new trust path;
+just a new *input* channel behind founder consent.
+
+---
+
 ## T-06 · Activate / outreach send path · `backlog`
 
 **What:** The spec generates the outreach draft (cold outreach, not cold investment). A later extension

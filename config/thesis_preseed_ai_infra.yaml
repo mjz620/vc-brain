@@ -1,0 +1,8 @@
+name: Pre-seed AI Infra
+sectors: [ai-infra, developer-tools, llm-ops]
+stage: pre-seed
+geography: [US, EU, remote]
+check_size_usd: 100000
+ownership_target_pct: 8
+risk_appetite: high          # tolerant of thin / cold-start records
+topics: [llm, agents, evaluation, inference, developer-tools]

@@ -65,6 +65,28 @@ CREATE TABLE IF NOT EXISTS droplog (
     logged_at   TEXT NOT NULL
 );
 
+-- Per-opportunity axis scores (spec §2.3). Three independent axes, NEVER averaged.
+-- Append-only, so the trend over time falls out by comparing successive scores.
+CREATE TABLE IF NOT EXISTS axis_scores (
+    founder_id TEXT NOT NULL REFERENCES founders(id),
+    axis       TEXT NOT NULL,           -- founder | market | idea
+    score      REAL NOT NULL,           -- 0–10
+    stance     TEXT NOT NULL,
+    rationale  TEXT NOT NULL,
+    coverage   REAL NOT NULL,           -- 0–1
+    thesis     TEXT NOT NULL,
+    scored_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_axis_founder ON axis_scores(founder_id, axis);
+
+-- First-pass kill screen (spec §2.3): log why a non-viable opportunity was killed.
+CREATE TABLE IF NOT EXISTS kill_log (
+    founder_id TEXT NOT NULL,
+    reason     TEXT NOT NULL,
+    thesis     TEXT NOT NULL,
+    logged_at  TEXT NOT NULL
+);
+
 -- Append-only guard: the signals table cannot be updated or deleted from.
 CREATE TRIGGER IF NOT EXISTS signals_no_update BEFORE UPDATE ON signals
 BEGIN SELECT RAISE(ABORT, 'signals table is append-only'); END;

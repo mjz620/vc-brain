@@ -1,0 +1,8 @@
+name: Series-A Enterprise SaaS
+sectors: [enterprise-saas, security, compliance]
+stage: series-a
+geography: [US]
+check_size_usd: 3000000
+ownership_target_pct: 15
+risk_appetite: low           # wants proven traction, penalizes unverified records
+topics: [security, compliance, saas, enterprise]

@@ -7,10 +7,13 @@ Block 1 exposes:
 Later blocks add: scan, screen, diligence, memo.
 """
 import argparse
+import os
 
 from app import config
 from app.memory import db, ingest, resolve
 from app.memory.models import Claim, Founder, Signal
+from app.screening import axes as axes_mod
+from app.screening import thesis as thesis_mod
 from app.sources import arxiv, github, hn
 
 
@@ -88,6 +91,40 @@ def cmd_scan(args) -> None:
           f"{summary['founders']} founders; {len(dropped)} drop-logged {reasons}")
 
 
+def _pick_founder(conn) -> str | None:
+    row = conn.execute(
+        "SELECT r.founder_id AS fid, COUNT(*) n FROM resolutions r "
+        "GROUP BY r.founder_id ORDER BY n DESC LIMIT 1").fetchone()
+    return row["fid"] if row else None
+
+
+def cmd_screen(args) -> None:
+    """Screen a founder on 3 independent axes through a thesis lens (never averaged)."""
+    replay = config.replay_enabled(args.replay)
+    conn = db.connect()
+    db.init_db(conn)
+    if not replay and not (os.environ.get("ANTHROPIC_API_KEY")
+                           or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
+        print("screen makes live LLM calls — export ANTHROPIC_API_KEY first "
+              "(then re-run with --replay to reuse the cached run).")
+        return
+    thesis = thesis_mod.load_thesis(args.thesis)
+    founder_id = args.founder or _pick_founder(conn)
+    if not founder_id:
+        print("no resolved founders in Memory — run `scan` first")
+        return
+
+    result = axes_mod.screen(conn, founder_id, thesis, replay=replay)
+    print(f"\n=== Screen: {founder_id} | thesis: {result['thesis']} ===")
+    if result["killed"]:
+        print(f"KILLED (first-pass): {result['kill_reason']}")
+        return
+    for axis, a in result["axes"].items():
+        print(f"  {axis:8s}  score {a['score']:>4}/10  {a['trend']:<9} "
+              f"[{a['stance']}]  cov {a['coverage']:.0%}  — {a['rationale']}")
+    print("  (three axes shown side by side; no blended score by design)")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="vc-brain")
     parser.add_argument("--replay", action="store_true", help="read only from cache")
@@ -99,6 +136,10 @@ def main() -> None:
     p_scan.add_argument("--query", default="agent", help="HN/arXiv query")
     p_scan.add_argument("--arxiv", action="store_true", help="also scan arXiv")
     p_scan.set_defaults(func=cmd_scan)
+    p_screen = sub.add_parser("screen", help="3-axis screen through a thesis lens")
+    p_screen.add_argument("--founder", help="founder id (default: most-signalled)")
+    p_screen.add_argument("--thesis", default="config/thesis_preseed_ai_infra.yaml")
+    p_screen.set_defaults(func=cmd_screen)
 
     args = parser.parse_args()
     args.func(args)
