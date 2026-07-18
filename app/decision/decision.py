@@ -36,13 +36,21 @@ def gap_report(claims) -> list[dict]:
     return report
 
 
-def per_axis(conn, founder_id: str) -> list[dict]:
-    """Latest score per screening axis, side by side with a trend. Never averaged."""
+def per_axis(conn, founder_id: str, thesis_name: str | None = None) -> list[dict]:
+    """Latest score per screening axis, side by side with a trend. Never averaged.
+    With thesis_name, only scores produced under that thesis lens count."""
     out = []
     for axis in axes_mod.AXES:
-        row = conn.execute("SELECT score, stance, coverage FROM axis_scores WHERE "
-                           "founder_id=? AND axis=? ORDER BY scored_at DESC LIMIT 1",
-                           (founder_id, axis)).fetchone()
+        if thesis_name:
+            row = conn.execute(
+                "SELECT score, stance, coverage FROM axis_scores WHERE founder_id=? "
+                "AND axis=? AND thesis=? ORDER BY scored_at DESC LIMIT 1",
+                (founder_id, axis, thesis_name)).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT score, stance, coverage FROM axis_scores WHERE founder_id=? "
+                "AND axis=? ORDER BY scored_at DESC LIMIT 1",
+                (founder_id, axis)).fetchone()
         if row:
             out.append({"axis": axis, "score": row["score"], "stance": row["stance"],
                         "coverage": row["coverage"],

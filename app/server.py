@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from . import config, instrument
 from .decision import decision as dec
@@ -52,12 +53,13 @@ def theses():
 @app.get("/api/founders")
 def founders(thesis: str | None = None):
     conn = _conn()
+    t = _thesis(thesis)
     ids = [r["fid"] for r in conn.execute(
         "SELECT DISTINCT founder_id fid FROM axis_scores").fetchall()]
     out = []
     for fid in ids:
         name = conn.execute("SELECT name FROM founders WHERE id=?", (fid,)).fetchone()
-        axes = dec.per_axis(conn, fid)
+        axes = dec.per_axis(conn, fid, t.name)  # thesis lens actually applied
         has_memo = conn.execute("SELECT 1 FROM memos WHERE founder_id=? LIMIT 1",
                                 (fid,)).fetchone() is not None
         lat = instrument.latency_strip(conn, fid)
@@ -161,6 +163,90 @@ def channels():
                           f"{best['signals']} scanned — scan it deeper "
                           f"(heuristic on resolve-rate; no outcome data yet)")
     return {"channels": chans, "suggestion": suggestion}
+
+
+@app.get("/api/query")
+def nl_query(q: str):
+    """Multi-attribute NL query (MVP 3): one cached model call parses; Memory filters.
+    Non-evaluable criteria are flagged and ignored, never guessed."""
+    from . import query as query_mod
+    conn = _conn()
+    try:
+        return query_mod.run(conn, q, replay=config.replay_enabled(None))
+    except Exception as e:  # replay miss on an unseeded query, or no key
+        raise HTTPException(422, f"query could not run: {type(e).__name__}: {e}")
+
+
+@app.get("/api/trace/{founder_id}/{claim_id}")
+def trace(founder_id: str, claim_id: str):
+    """Agentic Traceability (stretch 1): the full chain behind one claim —
+    claim -> evidence -> source signals -> how trust was set (rubric or the
+    prosecutor/defender/judge transcript that overrode it)."""
+    conn = _conn()
+    row = conn.execute("SELECT * FROM claims WHERE founder_id=? AND claim_id=?",
+                       (founder_id, claim_id)).fetchone()
+    if not row:
+        raise HTTPException(404, "claim not found")
+    sig_ids = json.loads(row["signal_ids"] or "[]")
+    marks = ",".join("?" * len(sig_ids)) or "''"
+    sigs = conn.execute(
+        f"SELECT * FROM signals WHERE id IN ({marks}) OR source_url = ?",
+        (*sig_ids, row["source_url"])).fetchall()
+    adj = conn.execute(
+        "SELECT * FROM adjudications WHERE founder_id=? AND claim_id=? "
+        "ORDER BY decided_at DESC LIMIT 1", (founder_id, claim_id)).fetchone()
+    from .diligence.ledger import rubric_trust
+    return {
+        "claim": {"id": row["claim_id"], "axis": row["axis"], "text": row["text"],
+                  "stance": row["stance"], "evidence": row["evidence"],
+                  "source_url": row["source_url"], "source_type": row["source_type"],
+                  "corroboration": row["corroboration"], "trust": row["trust"],
+                  "observed_at": row["observed_at"]},
+        "signals": [{"id": s["id"], "source": s["source"],
+                     "source_url": s["source_url"], "content": s["content"],
+                     "observed_at": s["observed_at"], "ingested_at": s["ingested_at"]}
+                    for s in sigs],
+        "rubric_trust": rubric_trust(row["corroboration"]),
+        "adjudication": {
+            "prosecution": adj["prosecution"], "defense": adj["defense"],
+            "corroboration": adj["corroboration"], "trust": adj["trust"],
+            "rationale": adj["rationale"], "decided_at": adj["decided_at"],
+        } if adj else None,
+    }
+
+
+class Application(BaseModel):
+    company: str
+    deck_text: str
+
+
+@app.post("/api/apply")
+def apply(body: Application):
+    """Inbound intake (MVP 4): deck + company name is the minimum bar. The deck
+    lands as a self-reported signal in the same funnel as outbound."""
+    import re as _re
+
+    from .memory.models import Founder, Signal
+    if not body.company.strip() or not body.deck_text.strip():
+        raise HTTPException(422, "company and deck_text are required — nothing else is")
+    conn = _conn()
+    fid = "founder-" + _re.sub(r"[^a-z0-9]+", "-", body.company.lower()).strip("-")
+    ingest.upsert_founder(conn, Founder(id=fid, name=body.company))
+    sid, inserted = ingest.ingest_signal(conn, Signal(
+        source="deck", source_url=f"application://{fid}", content=body.deck_text,
+        observed_at=config.DEMO_TODAY, founder_id=fid))
+    from . import llm as llm_mod
+    screened = False
+    if llm_mod.provider() is not None or config.replay_enabled(None):
+        try:
+            from .screening import axes as axes_mod
+            axes_mod.screen(conn, fid, _thesis(None),
+                            replay=config.replay_enabled(None))
+            screened = True
+        except Exception:
+            pass  # screening is best-effort at intake; the founder is stored either way
+    return {"founder_id": fid, "signal_id": sid, "duplicate": not inserted,
+            "screened": screened}
 
 
 @app.get("/api/outreach/{founder_id}")
