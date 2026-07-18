@@ -33,9 +33,9 @@ def scan(conn, query: str, *, replay: bool, limit: int = 10) -> list[dict]:
         content = f"arXiv: {title} | authors={', '.join(authors)}"
         sig = Signal(source="arxiv", source_url=url, content=content,
                      observed_at=entry.findtext("a:published", None, _NS))
-        sid, _ = ingest.ingest_signal(conn, sig)
+        sid, ins = ingest.ingest_signal(conn, sig)
         keys = {"arxiv": first.lower().replace(" ", "-")}
         if gh:
             keys["github"] = gh.group(1)
-        items.append({"signal_id": sid, "label": title, "keys": keys})
+        items.append({"signal_id": sid, "inserted": ins, "label": title, "keys": keys})
     return items

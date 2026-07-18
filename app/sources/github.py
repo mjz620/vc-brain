@@ -27,7 +27,7 @@ def scan(conn, topic: str, *, replay: bool, limit: int = 15) -> list[dict]:
                    f"open_issues={repo['open_issues_count']} created={repo['created_at']}")
         sig = Signal(source="github", source_url=repo["html_url"], content=content,
                      observed_at=repo["created_at"])
-        sid, _ = ingest.ingest_signal(conn, sig)
-        items.append({"signal_id": sid, "label": repo["full_name"],
+        sid, ins = ingest.ingest_signal(conn, sig)
+        items.append({"signal_id": sid, "inserted": ins, "label": repo["full_name"],
                       "keys": {"github": owner, "domain": domain}})
     return items

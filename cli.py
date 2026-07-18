@@ -9,11 +9,10 @@ Later blocks add: scan, screen, diligence, memo.
 import argparse
 
 from app import config, llm
-from app.memory import db, ingest, resolve
+from app.memory import db, ingest
 from app.memory.models import Claim, Founder, Signal
 from app.screening import axes as axes_mod
 from app.screening import thesis as thesis_mod
-from app.sources import arxiv, github, hn
 
 
 def cmd_init(_args) -> None:
@@ -63,31 +62,73 @@ def cmd_demo(_args) -> None:
 
 
 def cmd_scan(args) -> None:
-    """Outbound scanner: GitHub + HN (+ arXiv) -> Memory, then entity resolution."""
+    """Outbound scanner: thesis-driven queries across all adapters -> Memory ->
+    entity resolution. --watch loops and auto-screens founders whose new signals
+    cross the conviction threshold (brief: "signals crossing a conviction threshold
+    on their own"), then drafts Activate outreach."""
+    import time as _time
+
+    from app import activate as activate_mod
+    from app.sources import scanner
+
     replay = config.replay_enabled(args.replay)
     conn = db.connect()
     db.init_db(conn)
+    thesis = thesis_mod.load_thesis(args.thesis)
+    topics = scanner.topics_for(thesis, args.topic)
+    rounds = args.rounds if args.watch else 1
 
-    items = []
-    for name, fn, arg in [("github", github.scan, args.topic),
-                          ("hn", hn.scan, args.query),
-                          ("arxiv", arxiv.scan, args.query)]:
-        if name == "arxiv" and not args.arxiv:
-            continue
-        try:
-            found = fn(conn, arg, replay=replay)
-            items += found
-            print(f"[{name}] {len(found)} signals for {arg!r}")
-        except Exception as e:  # a source failing must not sink the scan
-            print(f"[{name}] skipped: {type(e).__name__}: {e}")
+    for rnd in range(1, rounds + 1):
+        if args.watch:
+            print(f"\n--- watch round {rnd}/{rounds} (topics from thesis "
+                  f"{thesis.name!r}: {topics}) ---")
+        result = scanner.run_scan(conn, topics, replay=replay)
+        for name, n in result["counts"].items():
+            print(f"[{name}] {n}")
+        reasons = {}
+        for _, r in result["dropped"]:
+            reasons[r] = reasons.get(r, 0) + 1
+        print(f"[resolve] {result['resolved']} signals resolved -> "
+              f"{result['founders']} founders; {len(result['dropped'])} "
+              f"drop-logged {reasons}")
 
-    summary = resolve.resolve(conn, items)
-    dropped = summary["dropped"]
-    reasons = {}
-    for _, r in dropped:
-        reasons[r] = reasons.get(r, 0) + 1
-    print(f"[resolve] {summary['resolved']} signals resolved -> "
-          f"{summary['founders']} founders; {len(dropped)} drop-logged {reasons}")
+        if args.watch:
+            fresh = scanner.newly_resolved_founders(conn, result["new_signal_ids"])
+            print(f"[watch] {len(fresh)} founders gained signals this round")
+            if fresh and not replay and llm.provider() is None:
+                print("[watch] no LLM key — skipping conviction screening")
+            elif fresh:
+                for fid, n_new in fresh[:args.max_screens]:
+                    res = axes_mod.screen(conn, fid, thesis, replay=replay)
+                    if res["killed"]:
+                        print(f"[screen] {fid} (+{n_new} signals) KILLED: "
+                              f"{res['kill_reason']}")
+                        continue
+                    best = max(a["score"] for a in res["axes"].values())
+                    print(f"[screen] {fid} (+{n_new} signals) best axis {best}/10")
+                    if best >= args.threshold:
+                        d = activate_mod.draft(conn, fid, thesis.name, replay=replay)
+                        print(f"[ACTIVATE] {fid} crossed conviction threshold "
+                              f"{args.threshold} — outreach drafted:\n"
+                              f"  Subject: {d.subject}\n  Cites: {d.cited_signal_url}")
+        if args.watch and rnd < rounds:
+            print(f"[watch] sleeping {args.interval}s")
+            _time.sleep(args.interval)
+
+
+def cmd_activate(args) -> None:
+    """Draft outreach for a founder, citing the signal that triggered the interest."""
+    from app import activate as activate_mod
+    replay = config.replay_enabled(args.replay)
+    conn = db.connect()
+    db.init_db(conn)
+    if not replay and llm.provider() is None:
+        print("activate makes a live LLM call — set a key, or use --replay.")
+        return
+    thesis = thesis_mod.load_thesis(args.thesis)
+    d = activate_mod.draft(conn, args.founder, thesis.name, replay=replay)
+    print(f"Subject: {d.subject}\n\n{d.body}\n\n[cites triggering signal: "
+          f"{d.cited_signal_url}]")
 
 
 def _pick_founder(conn) -> str | None:
@@ -171,11 +212,24 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init", help="create vc_brain.db").set_defaults(func=cmd_init)
     sub.add_parser("demo", help="run the Block 1 gate demo").set_defaults(func=cmd_demo)
-    p_scan = sub.add_parser("scan", help="outbound scanner into Memory")
-    p_scan.add_argument("--topic", default="llm", help="GitHub topic to scan")
-    p_scan.add_argument("--query", default="agent", help="HN/arXiv query")
-    p_scan.add_argument("--arxiv", action="store_true", help="also scan arXiv")
+    p_scan = sub.add_parser("scan", help="thesis-driven outbound scanner into Memory")
+    p_scan.add_argument("--thesis", default="config/thesis_preseed_ai_infra.yaml")
+    p_scan.add_argument("--topic", help="override: scan a single topic instead of "
+                                        "the thesis topics")
+    p_scan.add_argument("--watch", action="store_true",
+                        help="continuous mode: rescan + auto-screen new founders")
+    p_scan.add_argument("--rounds", type=int, default=3, help="watch rounds")
+    p_scan.add_argument("--interval", type=int, default=300,
+                        help="seconds between watch rounds")
+    p_scan.add_argument("--threshold", type=float, default=7.5,
+                        help="conviction threshold (best axis score) for Activate")
+    p_scan.add_argument("--max-screens", type=int, default=3,
+                        help="max founders screened per watch round")
     p_scan.set_defaults(func=cmd_scan)
+    p_act = sub.add_parser("activate", help="draft outreach citing the triggering signal")
+    p_act.add_argument("--founder", required=True)
+    p_act.add_argument("--thesis", default="config/thesis_preseed_ai_infra.yaml")
+    p_act.set_defaults(func=cmd_activate)
     p_screen = sub.add_parser("screen", help="3-axis screen through a thesis lens")
     p_screen.add_argument("--founder", help="founder id (default: most-signalled)")
     p_screen.add_argument("--thesis", default="config/thesis_preseed_ai_infra.yaml")

@@ -22,7 +22,7 @@ def scan(conn, query: str, *, replay: bool, limit: int = 15) -> list[dict]:
         source_url = f"https://news.ycombinator.com/item?id={hit['objectID']}"
         sig = Signal(source="hn", source_url=source_url, content=content,
                      observed_at=hit.get("created_at"))
-        sid, _ = ingest.ingest_signal(conn, sig)
-        items.append({"signal_id": sid, "label": hit.get("title") or "",
+        sid, ins = ingest.ingest_signal(conn, sig)
+        items.append({"signal_id": sid, "inserted": ins, "label": hit.get("title") or "",
                       "keys": {"hn": author, "domain": domain}})
     return items

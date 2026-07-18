@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-Source = Literal["github", "hn", "arxiv", "producthunt", "deck", "web", "manual"]
+Source = Literal["github", "hn", "arxiv", "producthunt", "yc", "deck", "web", "manual"]
 
 
 class Claim(BaseModel):

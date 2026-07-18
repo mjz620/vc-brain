@@ -84,6 +84,92 @@ def founder(founder_id: str, thesis: str | None = None):
     return brief
 
 
+@app.get("/api/sourcing")
+def sourcing(thesis: str | None = None):
+    """Ranked outbound feed: every resolved founder (screened or not), ranked by
+    thesis-topic match + signal count. Includes the drop-log tally — 'nothing
+    discarded' rendered as a feature."""
+    conn = _conn()
+    t = _thesis(thesis)
+    rows = conn.execute(
+        "SELECT r.founder_id fid, COUNT(*) n, GROUP_CONCAT(DISTINCT s.source) sources, "
+        "MAX(COALESCE(s.observed_at, s.ingested_at)) latest, "
+        "GROUP_CONCAT(s.content, '\n') blob "
+        "FROM resolutions r JOIN signals s ON s.id = r.signal_id "
+        "GROUP BY r.founder_id").fetchall()
+    screened = {r["fid"] for r in conn.execute(
+        "SELECT DISTINCT founder_id fid FROM axis_scores").fetchall()}
+    outreach = {r["fid"] for r in conn.execute(
+        "SELECT DISTINCT founder_id fid FROM outreach").fetchall()}
+    out = []
+    for r in rows:
+        f = conn.execute("SELECT name, entity_keys FROM founders WHERE id=?",
+                         (r["fid"],)).fetchone()
+        blob = (r["blob"] or "").lower()
+        topic_match = sum(1 for tp in t.topics if tp.lower() in blob)
+        out.append({"id": r["fid"], "name": f["name"] if f else r["fid"],
+                    "entity_keys": json.loads(f["entity_keys"]) if f else {},
+                    "sources": (r["sources"] or "").split(","),
+                    "signal_count": r["n"], "latest_signal_at": r["latest"],
+                    "thesis_topic_match": topic_match,
+                    "screened": r["fid"] in screened,
+                    "has_outreach": r["fid"] in outreach})
+    out.sort(key=lambda x: (x["thesis_topic_match"], x["signal_count"]), reverse=True)
+    dropped = conn.execute(
+        "SELECT COUNT(DISTINCT signal_id) c FROM droplog").fetchone()["c"]
+    return {"thesis": t.name, "founders": out, "droplog_count": dropped}
+
+
+@app.get("/api/channels")
+def channels():
+    """Sourcing-graph lite (stretch 3): per-channel yield through the funnel —
+    signals -> resolved -> founders -> screened. Suggestion is a labeled heuristic,
+    not learned (no funded-outcome data exists; anything else would be fabricated)."""
+    conn = _conn()
+    rows = conn.execute(
+        "SELECT s.source, COUNT(*) signals, COUNT(r.signal_id) resolved, "
+        "COUNT(DISTINCT r.founder_id) founders "
+        "FROM signals s LEFT JOIN resolutions r ON r.signal_id = s.id "
+        "GROUP BY s.source").fetchall()
+    screened = {r["fid"] for r in conn.execute(
+        "SELECT DISTINCT founder_id fid FROM axis_scores").fetchall()}
+    chans = []
+    for r in rows:
+        fids = [x["fid"] for x in conn.execute(
+            "SELECT DISTINCT r.founder_id fid FROM resolutions r "
+            "JOIN signals s ON s.id = r.signal_id WHERE s.source=?",
+            (r["source"],)).fetchall()]
+        chans.append({"source": r["source"], "signals": r["signals"],
+                      "resolved": r["resolved"], "founders": r["founders"],
+                      "screened": sum(1 for f in fids if f in screened),
+                      "resolve_rate": round(r["resolved"] / r["signals"], 2)
+                      if r["signals"] else 0})
+    suggestion = None
+    scannable = [c for c in chans if c["source"] not in ("deck", "manual", "web")]
+    if len(scannable) >= 2:
+        med = sorted(c["signals"] for c in scannable)[len(scannable) // 2]
+        under = [c for c in scannable if c["signals"] <= med and c["resolve_rate"] > 0]
+        if under:
+            best = max(under, key=lambda c: c["resolve_rate"])
+            suggestion = (f"underexplored channel: '{best['source']}' resolves "
+                          f"{best['resolve_rate']:.0%} of signals but has only "
+                          f"{best['signals']} scanned — scan it deeper "
+                          f"(heuristic on resolve-rate; no outcome data yet)")
+    return {"channels": chans, "suggestion": suggestion}
+
+
+@app.get("/api/outreach/{founder_id}")
+def outreach(founder_id: str):
+    conn = _conn()
+    rows = conn.execute(
+        "SELECT o.*, s.source_url, s.content FROM outreach o "
+        "JOIN signals s ON s.id = o.signal_id WHERE o.founder_id=?",
+        (founder_id,)).fetchall()
+    return [{"subject": r["subject"], "body": r["body"],
+             "created_at": r["created_at"], "triggering_signal_url": r["source_url"],
+             "triggering_signal": r["content"]} for r in rows]
+
+
 @app.get("/api/killed")
 def killed():
     conn = _conn()

@@ -123,6 +123,16 @@ CREATE TABLE IF NOT EXISTS kill_log (
     logged_at  TEXT NOT NULL
 );
 
+-- Activate (brief MVP 5): outreach drafts, each tied to the signal that triggered it.
+CREATE TABLE IF NOT EXISTS outreach (
+    founder_id TEXT NOT NULL REFERENCES founders(id),
+    signal_id  TEXT NOT NULL REFERENCES signals(id),
+    subject    TEXT NOT NULL,
+    body       TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (founder_id, signal_id)
+);
+
 -- Append-only guard: the signals table cannot be updated or deleted from.
 CREATE TRIGGER IF NOT EXISTS signals_no_update BEFORE UPDATE ON signals
 BEGIN SELECT RAISE(ABORT, 'signals table is append-only'); END;
