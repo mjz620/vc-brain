@@ -44,6 +44,29 @@ view (see T-03).
 
 ---
 
+## T-08 · Expand sourcing corpus + live-time updates · `next`
+
+**What:** Two related pushes on the data layer (Data Architecture is 30%, the highest-weight axis).
+
+1. **Broaden the sourcing corpus** — go well beyond GitHub/HN/arXiv. Add ProductHunt, Devpost, real
+   patents (USPTO/Google Patents), accelerator cohorts, company sites, dated public writing, and
+   founder-supplied profiles (T-07). Also add a **live external-verification worker** for the *diligence*
+   step so the negative-result checks (EDGAR, acquisition records) are fetched at diligence time rather
+   than seeded as fixtures. (Overlaps + extends T-02; this is the priority framing.)
+
+2. **Live-time updates** — move from one-shot scans to *continuous* refresh: re-scan on a schedule /
+   webhook, ingest new signals as they appear, and let the append-only Founder Score history update in
+   place so the trend arrows reflect real movement over time (not just re-runs). Watch specific founders;
+   re-screen when a new signal crosses a threshold (the brief's "signals crossing a conviction threshold
+   on their own"). Requires: a scheduler, per-source incremental cursors, and cache-invalidation policy
+   so live updates don't silently break `--replay` determinism (keep a frozen demo snapshot separate
+   from the live-updating store).
+
+**Why:** richer + fresher data is the core differentiator the brief rewards, and live-time updating is
+what turns this from a batch tool into the "living intelligence network" framing.
+
+---
+
 ## T-03 · Sourcing-graph / network intelligence (stretch goal 3) · `backlog`
 
 **What:** Model the sourcing graph — programs, institutions, channels through which founders become

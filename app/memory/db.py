@@ -105,6 +105,16 @@ CREATE TABLE IF NOT EXISTS memos (
     PRIMARY KEY (founder_id, thesis)
 );
 
+-- Latency instrumentation (spec §2.6): per-stage wall-clock, signal -> decision.
+-- Directly credited by the Investment Utility criterion (30%).
+CREATE TABLE IF NOT EXISTS latency (
+    founder_id  TEXT NOT NULL,
+    stage       TEXT NOT NULL,
+    seconds     REAL NOT NULL,
+    measured_at TEXT NOT NULL,
+    PRIMARY KEY (founder_id, stage)
+);
+
 -- First-pass kill screen (spec §2.3): log why a non-viable opportunity was killed.
 CREATE TABLE IF NOT EXISTS kill_log (
     founder_id TEXT NOT NULL,

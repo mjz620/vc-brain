@@ -145,6 +145,23 @@ def cmd_diligence(args) -> None:
         print("\n" + result["memo"])
 
 
+def cmd_decision(args) -> None:
+    """Assemble the decision brief: recommendation + per-axis (unblended) + gap rendering
+    + latency strip + memo. Runs diligence first (cached in --replay = zero cost)."""
+    replay = config.replay_enabled(args.replay)
+    conn = db.connect()
+    db.init_db(conn)
+    if not replay and llm.provider() is None:
+        print("decision runs diligence (live LLM) — set OPENAI_API_KEY, or use --replay.")
+        return
+    from app.decision import decision as dec
+    from app.diligence import loader, pipeline
+    founder_id = loader.load_fixture(conn, args.fixture, replay=replay)
+    thesis = thesis_mod.load_thesis(args.thesis)
+    pipeline.run_diligence(conn, founder_id, thesis, replay=replay)
+    print(dec.render(dec.build(conn, founder_id, thesis)))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="vc-brain")
     parser.add_argument("--replay", action="store_true", help="read only from cache")
@@ -165,6 +182,10 @@ def main() -> None:
     p_dil.add_argument("--thesis", default="config/thesis_preseed_ai_infra.yaml")
     p_dil.add_argument("--print-memo", action="store_true", help="print the full memo")
     p_dil.set_defaults(func=cmd_diligence)
+    p_dec = sub.add_parser("decision", help="decision brief (rec + axes + gaps + latency)")
+    p_dec.add_argument("--fixture", default="founder_b_corevance")
+    p_dec.add_argument("--thesis", default="config/thesis_preseed_ai_infra.yaml")
+    p_dec.set_defaults(func=cmd_decision)
 
     args = parser.parse_args()
     args.func(args)
