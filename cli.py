@@ -9,8 +9,9 @@ Later blocks add: scan, screen, diligence, memo.
 import argparse
 
 from app import config
-from app.memory import db, ingest
+from app.memory import db, ingest, resolve
 from app.memory.models import Claim, Founder, Signal
+from app.sources import arxiv, github, hn
 
 
 def cmd_init(_args) -> None:
@@ -59,15 +60,47 @@ def cmd_demo(_args) -> None:
     print(f"[state] signals in table: {total} (append-only, nothing discarded)")
 
 
+def cmd_scan(args) -> None:
+    """Outbound scanner: GitHub + HN (+ arXiv) -> Memory, then entity resolution."""
+    replay = config.replay_enabled(args.replay)
+    conn = db.connect()
+    db.init_db(conn)
+
+    items = []
+    for name, fn, arg in [("github", github.scan, args.topic),
+                          ("hn", hn.scan, args.query),
+                          ("arxiv", arxiv.scan, args.query)]:
+        if name == "arxiv" and not args.arxiv:
+            continue
+        try:
+            found = fn(conn, arg, replay=replay)
+            items += found
+            print(f"[{name}] {len(found)} signals for {arg!r}")
+        except Exception as e:  # a source failing must not sink the scan
+            print(f"[{name}] skipped: {type(e).__name__}: {e}")
+
+    summary = resolve.resolve(conn, items)
+    dropped = summary["dropped"]
+    reasons = {}
+    for _, r in dropped:
+        reasons[r] = reasons.get(r, 0) + 1
+    print(f"[resolve] {summary['resolved']} signals resolved -> "
+          f"{summary['founders']} founders; {len(dropped)} drop-logged {reasons}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="vc-brain")
     parser.add_argument("--replay", action="store_true", help="read only from cache")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init", help="create vc_brain.db").set_defaults(func=cmd_init)
     sub.add_parser("demo", help="run the Block 1 gate demo").set_defaults(func=cmd_demo)
+    p_scan = sub.add_parser("scan", help="outbound scanner into Memory")
+    p_scan.add_argument("--topic", default="llm", help="GitHub topic to scan")
+    p_scan.add_argument("--query", default="agent", help="HN/arXiv query")
+    p_scan.add_argument("--arxiv", action="store_true", help="also scan arXiv")
+    p_scan.set_defaults(func=cmd_scan)
 
     args = parser.parse_args()
-    config.replay_enabled(args.replay)  # thread the flag (no live calls in Block 1)
     args.func(args)
 
 

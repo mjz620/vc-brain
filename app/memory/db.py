@@ -47,6 +47,24 @@ CREATE TABLE IF NOT EXISTS claims (
     PRIMARY KEY (founder_id, claim_id)
 );
 
+-- Entity resolution: a signal links to a founder only on >=2 co-occurring entity
+-- keys. Resolution is its own ledger so raw signals stay immutable.
+CREATE TABLE IF NOT EXISTS resolutions (
+    signal_id   TEXT PRIMARY KEY REFERENCES signals(id),
+    founder_id  TEXT NOT NULL REFERENCES founders(id),
+    method      TEXT NOT NULL,
+    resolved_at TEXT NOT NULL
+);
+
+-- Drop-log: signals that failed entity resolution are logged, not discarded
+-- (spec §2.1 "nothing discarded"; the drop-log is the compliance story).
+CREATE TABLE IF NOT EXISTS droplog (
+    signal_id   TEXT NOT NULL,
+    reason      TEXT NOT NULL,
+    entity_keys TEXT NOT NULL DEFAULT '{}',
+    logged_at   TEXT NOT NULL
+);
+
 -- Append-only guard: the signals table cannot be updated or deleted from.
 CREATE TRIGGER IF NOT EXISTS signals_no_update BEFORE UPDATE ON signals
 BEGIN SELECT RAISE(ABORT, 'signals table is append-only'); END;
