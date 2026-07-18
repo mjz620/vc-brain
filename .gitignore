@@ -9,6 +9,10 @@ __pycache__/
 vc_brain.db
 app/cache/live/
 
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
 # Secrets
 .env
 
