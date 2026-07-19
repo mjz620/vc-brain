@@ -134,12 +134,19 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
   padding: 0; margin-bottom: 16px; }
 .rec-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
   padding: 18px 20px; margin-bottom: 18px; box-shadow: var(--shadow); }
-.rec-card .head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-.rec-card h1 { font-family: var(--serif); font-size: 20px; margin: 0; letter-spacing: -0.01em; }
-.rec-card .hist { display: flex; align-items: center; gap: 8px; }
+/* The verdict is the hero of the page — largest element, semantic-colored, first. */
+.rec-card .verdict-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.verdict { font-family: var(--serif); font-size: 27px; font-weight: 600; line-height: 1;
+  letter-spacing: -0.01em; text-transform: capitalize; }
+.verdict.invest { color: var(--good); }
+.verdict.pass { color: var(--bad); }
+.verdict.conditional { color: var(--mid); }
+.verdict.none { color: var(--muted); }
+.verdict-amt { font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.verdict-amt b { color: var(--fg); font-size: 17px; font-weight: 650; }
+.rec-card .hist { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .rec-card .hist .m-k { margin: 0; }
-.rec-card .amt { margin-left: auto; font-size: 13px; color: var(--muted); }
-.rec-card .amt b { color: var(--fg); font-size: 16px; }
+.wwcom + .turns { margin-top: 8px; }
 .turns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
 .wwcom { color: var(--muted); font-size: 13px; }
 .wwcom b { color: var(--fg); }
@@ -168,6 +175,13 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
 .lat { background: var(--bg2); border-radius: var(--r-sm); padding: 4px 9px; font-size: 11.5px; color: var(--muted); }
 .lat b { color: var(--fg); font-variant-numeric: tabular-nums; }
 .lat.total { background: var(--accent-weak); color: var(--accent); }
+/* demoted latency footer: instrumentation, not a headline */
+.lat-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; margin-top: 28px;
+  padding-top: 12px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--faint);
+  font-variant-numeric: tabular-nums; }
+.lat-foot-k { text-transform: uppercase; letter-spacing: 0.06em; font-size: 10.5px; }
+.lat-foot-stage { color: var(--muted); }
+.lat-foot b { color: var(--muted); margin-left: auto; }
 
 /* ---- memo + evidence -------------------------------------------------- */
 .memo-wrap { display: flex; gap: 16px; align-items: flex-start; }

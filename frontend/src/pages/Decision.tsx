@@ -73,26 +73,28 @@ export default function Decision({ thesis, founderId, founders, openFounder }: {
       {brief && (
         <>
           <div className="rec-card">
-            <div className="head">
-              <span className={`badge ${d}`}>{d}</span>
-              <h1>{brief.founder_id.replace("founder-", "")}</h1>
+            {/* The decision leads — it is the largest, first thing on a page named Decision. */}
+            <div className="verdict-row">
+              <span className={`verdict ${d}`}>{d}</span>
+              {rec.amount_usd ? (
+                <span className="verdict-amt"><b>${rec.amount_usd.toLocaleString()}</b> check</span>
+              ) : null}
               {brief.score_history?.length > 0 && (
                 <span className="hist" title="persistent Founder Score history — append-only">
                   <span className="m-k">F-Score</span>
                   <Sparkline history={brief.score_history} />
                 </span>
               )}
-              {rec.amount_usd ? <span className="amt"><b>${rec.amount_usd.toLocaleString()}</b> check</span> : null}
             </div>
+            {rec.what_would_change_our_mind ? (
+              <div className="wwcom"><b>What would change our mind:</b> {rec.what_would_change_our_mind}</div>
+            ) : null}
             {rec.claims_it_turns_on?.length ? (
               <div className="turns">turns on
                 {rec.claims_it_turns_on.map((id) => (
                   <button key={id} className="cite" onClick={() => setTraceId(id)}>[{id}]</button>
                 ))}
               </div>
-            ) : null}
-            {rec.what_would_change_our_mind ? (
-              <div className="wwcom"><b>What would change our mind:</b> {rec.what_would_change_our_mind}</div>
             ) : null}
           </div>
 
@@ -139,18 +141,8 @@ export default function Decision({ thesis, founderId, founders, openFounder }: {
             </div>
           </div>
 
-          <div className="block" style={{ marginBottom: 16 }}>
-            <h3>Latency — first signal → decision</h3>
-            <div className="strip">
-              {brief.latency.stages.map(([s, sec]) => (
-                <span key={s} className="lat">{s} <b>{sec.toFixed(2)}s</b></span>
-              ))}
-              <span className="lat total">total <b>{brief.latency.total_seconds.toFixed(2)}s</b></span>
-            </div>
-          </div>
-
           {rec.claims_it_turns_on?.length ? (
-            <details className="provwrap" open>
+            <details className="provwrap">
               <summary>Provenance — what the decision rests on</summary>
               <ProvenanceGraph decision={d} turnsOn={rec.claims_it_turns_on}
                 claims={brief.claims} totalClaims={brief.claims.length}
@@ -175,6 +167,18 @@ export default function Decision({ thesis, founderId, founders, openFounder }: {
                 onClose={() => setTraceId(null)} />
             )}
           </div>
+
+          {/* Instrumentation lives in the footer — a speed-to-decision signal, not a
+              headline on a go/no-go surface. */}
+          {brief.latency.stages.length > 0 && (
+            <div className="lat-foot">
+              <span className="lat-foot-k">signal → decision</span>
+              {brief.latency.stages.map(([s, sec]) => (
+                <span key={s} className="lat-foot-stage">{s} {sec.toFixed(1)}s</span>
+              ))}
+              <b>{brief.latency.total_seconds.toFixed(1)}s total</b>
+            </div>
+          )}
         </>
       )}
     </div>
