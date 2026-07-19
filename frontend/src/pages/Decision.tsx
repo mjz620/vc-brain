@@ -59,6 +59,12 @@ export default function Decision({ thesis, founderId, founders, openFounder }: {
       <div className="page-h">
         <h1>Memo &amp; Decision<span className="h-founder"> · {founderId.replace("founder-", "")}</span></h1>
         <FounderSwitcher founderId={founderId} founders={founders} openFounder={openFounder} />
+        {brief?.memo_md && (
+          <a className="minibtn" href={`/api/memo/${founderId}.pdf?thesis=${encodeURIComponent(thesis)}`}
+            target="_blank" rel="noreferrer" title="download a shareable investment-memo PDF">
+            ↓ PDF
+          </a>
+        )}
         <p className="page-sub">Recommendation first; every factual sentence carries its claim id —
           click one to trace it to the raw signal. Gaps are flagged in the brief's own words, never filled.</p>
       </div>

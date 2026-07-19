@@ -186,6 +186,12 @@ function ScanNow({ thesis, onDone }: { thesis: string; onDone: () => void }) {
 }
 
 const STATUS_MARK: Record<string, string> = { ok: "✓", error: "✗", running: "…", queued: "·" };
+const STAGE_LABEL: Record<string, string> = {
+  ingest: "Ingest deck", screen: "Screen — 3 axes",
+  news: "News research (Tavily)", market: "Market research (Tavily)",
+  extract: "Extract claims", adjudicate: "Adjudicate contested claims",
+  debate: "Bull/bear debate", synthesize: "Synthesize memo", done: "Done",
+};
 
 function ApplyForm({ openMemo }: { openMemo: (id: string) => void }) {
   const [company, setCompany] = useState("");
@@ -236,7 +242,7 @@ function ApplyForm({ openMemo }: { openMemo: (id: string) => void }) {
             <div key={s.stage}
               className={s.status === "running" ? "runline pulse" : "muted"}
               style={{ fontSize: 12.5 }}>
-              {STATUS_MARK[s.status] || "·"} {s.stage} — {s.status}
+              {STATUS_MARK[s.status] || "·"} {STAGE_LABEL[s.stage] || s.stage} — {s.status}
               {s.seconds != null ? ` (${s.seconds.toFixed(1)}s)` : ""}
               {s.detail ? ` — ${s.detail}` : ""}
             </div>

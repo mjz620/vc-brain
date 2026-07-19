@@ -1,0 +1,121 @@
+"""Render a stored memo (markdown) to a shareable investment-memo PDF.
+
+reportlab is pure-Python (no system libs) so it builds on Render's free tier. The
+memo markdown uses a small, known subset — ## / ### headings, ** bold **, - bullets,
+and [claim-id · trust · tier] citations — so a light converter is enough; we do not
+pull in a full markdown engine.
+"""
+import html
+import io
+import re
+
+from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.pagesizes import LETTER
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import (HRFlowable, ListFlowable, ListItem, Paragraph,
+                                SimpleDocTemplate, Spacer)
+
+_INK = "#1a1a2e"
+_MUTED = "#6b7280"
+_ACCENT = "#3358d4"
+
+
+def _styles():
+    ss = getSampleStyleSheet()
+    base = ParagraphStyle("body", parent=ss["Normal"], fontName="Times-Roman",
+                          fontSize=10.5, leading=15, textColor=_INK, alignment=TA_LEFT,
+                          spaceAfter=6)
+    return {
+        "body": base,
+        "h1": ParagraphStyle("h1", parent=base, fontName="Helvetica-Bold", fontSize=17,
+                             leading=21, spaceBefore=2, spaceAfter=2, textColor=_INK),
+        "h2": ParagraphStyle("h2", parent=base, fontName="Helvetica-Bold", fontSize=12.5,
+                             leading=16, spaceBefore=12, spaceAfter=4, textColor=_INK),
+        "h3": ParagraphStyle("h3", parent=base, fontName="Helvetica-Bold", fontSize=11,
+                             leading=14, spaceBefore=8, spaceAfter=2, textColor=_INK),
+        "meta": ParagraphStyle("meta", parent=base, fontSize=9.5, textColor=_MUTED,
+                               spaceAfter=2),
+        "cite": base,
+    }
+
+
+_BOLD = re.compile(r"\*\*(.+?)\*\*")
+# Citations [team-01 · 0.90 · corroborated] -> keep, color them so they read as evidence.
+_CITE = re.compile(r"\[([a-z]{2,6}-\d{1,3}[^\]]*)\]")
+
+
+_KEEP = set("–—‘’“”…·•")  # common typographic punctuation the memo uses
+
+
+def _inline(text: str) -> str:
+    # The standard PDF fonts are latin-only; keep latin-1 + common punctuation and
+    # drop glyphs they can't render (⚠, emoji) rather than emit tofu boxes.
+    text = text.replace("→", "->")
+    text = "".join(c for c in text if ord(c) < 0x100 or c in _KEEP)
+    text = html.escape(text)
+    text = _BOLD.sub(r"<b>\1</b>", text)
+    text = _CITE.sub(rf'<font color="{_ACCENT}">[\1]</font>', text)
+    return text
+
+
+def _flowables(memo_md: str, st: dict) -> list:
+    out, bullets = [], []
+
+    def flush_bullets():
+        nonlocal bullets
+        if bullets:
+            out.append(ListFlowable(
+                [ListItem(Paragraph(_inline(b), st["body"]), leftIndent=10)
+                 for b in bullets], bulletType="bullet", start="•",
+                leftIndent=12, spaceAfter=4))
+            bullets = []
+
+    for raw in memo_md.splitlines():
+        line = raw.rstrip()
+        if not line.strip():
+            flush_bullets()
+            continue
+        if line.startswith("### "):
+            flush_bullets(); out.append(Paragraph(_inline(line[4:]), st["h3"]))
+        elif line.startswith("## "):
+            flush_bullets()
+            out.append(Paragraph(_inline(line[3:]), st["h2"]))
+            out.append(HRFlowable(width="100%", thickness=0.5, color="#e5e7eb",
+                                  spaceBefore=1, spaceAfter=5))
+        elif line.lstrip().startswith(("- ", "* ")):
+            bullets.append(line.lstrip()[2:])
+        else:
+            flush_bullets(); out.append(Paragraph(_inline(line), st["body"]))
+    flush_bullets()
+    return out
+
+
+def render(company: str, thesis: str, decision: str, signal, coverage,
+           memo_md: str, date: str) -> bytes:
+    st = _styles()
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=LETTER, topMargin=0.7 * inch,
+                            bottomMargin=0.7 * inch, leftMargin=0.9 * inch,
+                            rightMargin=0.9 * inch, title=f"{company} — Investment Memo")
+    sig = "—" if signal is None else f"{signal:.1f}"
+    cov = "—" if coverage is None else f"{round(coverage * 100)}%"
+    story = [
+        Paragraph(html.escape(company), st["h1"]),
+        Paragraph(f"Investment Memo · {html.escape(thesis)} lens", st["meta"]),
+        Paragraph(f"Decision: <b>{html.escape((decision or 'n/a').upper())}</b>  ·  "
+                  f"Founder Signal {sig} / Coverage {cov}  ·  {html.escape(date)}",
+                  st["meta"]),
+        HRFlowable(width="100%", thickness=1, color=_ACCENT, spaceBefore=6,
+                   spaceAfter=10),
+    ]
+    story += _flowables(memo_md, st)
+    story += [
+        Spacer(1, 14),
+        HRFlowable(width="100%", thickness=0.5, color="#e5e7eb", spaceAfter=4),
+        Paragraph("Every bracketed [claim-id · trust · tier] traces to evidence in the "
+                  "VC Brain ledger. Gaps are flagged, never fabricated. Generated by "
+                  "VC Brain.", st["meta"]),
+    ]
+    doc.build(story)
+    return buf.getvalue()

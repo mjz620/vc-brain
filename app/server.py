@@ -235,6 +235,28 @@ def founder(founder_id: str, thesis: str | None = None):
     return brief
 
 
+@app.get("/api/memo/{founder_id}.pdf")
+def memo_pdf(founder_id: str, thesis: str | None = None):
+    """Shareable investment-memo PDF — the artifact a VC actually emails around."""
+    from fastapi.responses import Response
+
+    from . import memo_pdf as pdf
+    conn = _conn()
+    row = conn.execute(
+        "SELECT thesis, decision, memo_md, created_at FROM memos WHERE founder_id=? "
+        "ORDER BY created_at DESC LIMIT 1", (founder_id,)).fetchone()
+    if not row:
+        raise HTTPException(404, "no memo for this founder — run diligence first")
+    name = conn.execute("SELECT name FROM founders WHERE id=?", (founder_id,)).fetchone()
+    company = (name["name"] if name else founder_id).split("/")[-1].strip()
+    cur = founder_score.compute(conn, founder_id)
+    data = pdf.render(company, row["thesis"], row["decision"], cur["score"],
+                      cur["coverage"], row["memo_md"], (row["created_at"] or "")[:10])
+    slug = company.lower().replace(" ", "-") or founder_id
+    return Response(content=data, media_type="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="{slug}-memo.pdf"'})
+
+
 @app.get("/api/sourcing")
 def sourcing(thesis: str | None = None):
     """Ranked outbound feed: every resolved founder (screened or not), ranked by
