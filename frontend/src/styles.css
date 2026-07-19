@@ -82,7 +82,8 @@ select.control { padding-right: 26px; max-width: 190px; }
 
 /* ---- application cards ------------------------------------------------- */
 .apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+.card { display: block; width: 100%; text-align: left; font: inherit; color: inherit;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
   padding: 16px 18px; box-shadow: var(--shadow); cursor: pointer; transition: border-color .12s, transform .12s; }
 .card:hover { border-color: var(--accent); transform: translateY(-1px); }
 .card .top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -115,9 +116,16 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
   color: var(--faint); padding: 10px 14px; border-bottom: 1px solid var(--line); font-weight: 600; }
 .funnel td { padding: 11px 14px; border-bottom: 1px solid var(--line); }
 .funnel tbody tr:last-child td { border-bottom: none; }
-.funnel tbody tr { cursor: pointer; }
+/* row-scanning aid only — no cursor:pointer here, since the click target is the
+   .rowlink button in one cell, not the row; a row-wide pointer cursor would be a
+   false affordance on rows where most cells aren't interactive. */
 .funnel tbody tr:hover { background: var(--bg2); }
 .fname { font-weight: 600; }
+/* a real button inside a table cell — keyboard-operable, but reads identically to
+   plain cell text at rest (no underline/color) so the row's look doesn't change. */
+.rowlink { background: none; border: none; padding: 0; margin: 0; font: inherit;
+  font-weight: 600; color: var(--fg); cursor: pointer; text-align: left; }
+.rowlink:hover { color: var(--accent); }
 .src { font-size: 11px; color: var(--muted); background: var(--bg2); padding: 2px 8px; border-radius: 20px; }
 .axmini { font-variant-numeric: tabular-nums; }
 .axmini em { color: var(--muted); font-style: normal; font-size: 11.5px; margin-left: 3px; }
@@ -181,10 +189,10 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
 
 /* ---- memo + evidence -------------------------------------------------- */
 .memo-wrap { display: flex; gap: 16px; align-items: flex-start; }
-@media (max-width: 860px) {
-  .memo-wrap { flex-direction: column-reverse; }
-  .evidence, .trace { width: 100%; position: static; max-height: none; }
-}
+@media (max-width: 860px) { .memo-wrap { flex-direction: column-reverse; } }
+/* the .evidence/.trace mobile override must come AFTER both base rules below —
+   equal-specificity CSS cascade is source-order, not media-query-priority, so an
+   unconditional base rule appearing later would otherwise beat this override. */
 .memo { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r); padding: 24px 28px; box-shadow: var(--shadow);
   font-family: var(--serif); font-size: 15.5px; line-height: 1.7; }
@@ -241,6 +249,11 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
 @media (max-width: 980px) { .twocol { grid-template-columns: 1fr; } }
 .coldstart { margin-left: 7px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--accent); background: var(--accent-weak); border-radius: 20px; padding: 2px 7px; font-weight: 700; }
+/* a status flag, not a channel-provenance pill (.src) — visually distinct so "new"
+   is never mistaken for a source name in the same row. */
+.new-flag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--good); background: var(--good-bg); border-radius: 20px; padding: 2px 7px;
+  font-weight: 700; }
 .minibtn { background: var(--panel); color: var(--fg); border: 1px solid var(--line);
   border-radius: var(--r-sm); padding: 5px 11px; font-size: 12px; cursor: pointer; }
 .minibtn:hover { border-color: var(--accent); color: var(--accent); }
@@ -263,11 +276,15 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
 .picker { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---- diligence: claim ledger + transcripts ------------------------------ */
-.claimrow { display: flex; align-items: baseline; gap: 10px; background: var(--panel);
+.claimrow { display: flex; align-items: baseline; gap: 10px; width: 100%;
+  text-align: left; font: inherit; color: inherit; background: var(--panel);
   border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 12px;
   margin-bottom: 6px; cursor: pointer; }
 .claimrow:hover { border-color: var(--accent); }
 .claimrow.active { border-color: var(--accent); background: var(--accent-weak); }
+.tier-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--faint); margin: 14px 0 6px; font-weight: 600; }
+.tier-h:first-child { margin-top: 0; }
 .cr-id { font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 700;
   min-width: 64px; }
 .cr-axis { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
@@ -281,6 +298,10 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
 
 /* ---- trace panel -------------------------------------------------------- */
 .trace { width: 360px; max-height: calc(100vh - 40px); overflow-y: auto; }
+/* now after both .evidence (line 208) and .trace (above) — wins the cascade */
+@media (max-width: 860px) {
+  .evidence, .trace { width: 100%; position: static; max-height: none; }
+}
 .tr-signal { border-left: 2px solid var(--line); padding-left: 10px; margin: 6px 0 10px; }
 .tr-date { font-size: 11px; color: var(--faint); margin-left: 8px; font-variant-numeric: tabular-nums; }
 .tr-adj s { color: var(--faint); }
@@ -389,8 +410,8 @@ a.domchip:hover { text-decoration: underline; }
 .spot-head h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--bad); margin: 0; font-weight: 700; }
 .spot-count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.verdict { font-size: 12.5px; color: var(--muted); margin: -2px 0 8px; padding: 0 12px; }
-.verdict b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.claim-verdict { font-size: 12.5px; color: var(--muted); margin: -2px 0 8px; padding: 0 12px; }
+.claim-verdict b { color: var(--fg); font-variant-numeric: tabular-nums; }
 
 /* ---- ask this memo -------------------------------------------------------- */
 .ask { margin-top: 16px; background: var(--panel); border: 1px solid var(--line);
@@ -458,3 +479,5 @@ table.cmp td.rowh { font-size: 11px; text-transform: uppercase; letter-spacing: 
 .cmp-score.bad { color: var(--bad); }
 .cmp-score em { font-style: normal; font-size: 11.5px; font-weight: 500; color: var(--muted); margin-left: 4px; }
 .cmp-note { color: var(--muted); font-size: 12px; }
+/* visual seam between the 3 never-averaged axis rows and supporting metadata below */
+table.cmp .cmp-sep td { border-top: 2px solid var(--line); }

@@ -38,6 +38,12 @@ export default function Sourcing({ thesis, openFounder, openMemo }:
       const drafts = f.has_outreach ? await api.getOutreach(f.id) : [];
       const draft = drafts[0] || (await api.postActivate(f.id, thesis));
       setOutreach({ fid: f.id, draft });
+      // Patch has_outreach locally — otherwise the button still reads "activate" until
+      // the next full reload, and a second click re-drafts outreach for the same founder.
+      setFeed((prev) => prev && {
+        ...prev,
+        founders: prev.founders.map((x) => x.id === f.id ? { ...x, has_outreach: true } : x),
+      });
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -95,11 +101,14 @@ export default function Sourcing({ thesis, openFounder, openMemo }:
               <tbody>
                 {feed.founders.slice(0, 25).map((f) => (
                   <tr key={f.id}>
-                    <td className="fname" onClick={() => f.screened && openFounder(f.id)}
-                        style={{ cursor: f.screened ? "pointer" : "default" }}>
-                      {f.name}
+                    <td className="fname">
+                      {f.screened ? (
+                        <button className="rowlink" onClick={() => openFounder(f.id)}>{f.name}</button>
+                      ) : (
+                        <span>{f.name}</span>
+                      )}
                       {prevIds && !prevIds.has(f.id) && (
-                        <span className="src" style={{ marginLeft: 5 }}
+                        <span className="new-flag" style={{ marginLeft: 5 }}
                           title="resolved by the last live scan">new</span>
                       )}
                       {f.signal != null && f.signal >= 7 && f.coverage < 0.3 && (

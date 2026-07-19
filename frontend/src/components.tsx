@@ -3,6 +3,12 @@ import * as api from "./api";
 import type { ScorePoint, Trace } from "./api";
 
 export const TREND: Record<string, string> = { improving: "↑", declining: "↓", stable: "→", new: "✦" };
+/* A screen reader announces a bare Unicode arrow as "upwards arrow", not "improving" —
+   wrap every TREND glyph render in this so the word is always available to AT. */
+export function TrendGlyph({ trend }: { trend?: string }) {
+  const t = trend || "new";
+  return <span aria-label={t}>{TREND[t]}</span>;
+}
 export const AXES = ["founder", "market", "idea"] as const;
 export const AXLABEL: Record<string, string> = { founder: "Founder", market: "Market", idea: "Idea vs Mkt" };
 
@@ -166,8 +172,11 @@ export function TracePanel({ founderId, claimId, onClose }:
     setTrace(null); setErr(null); setShowDebate(false);
     api.getTraceCached(founderId, claimId).then(setTrace).catch((e) => setErr(e.message));
     // On narrow screens the rail stacks out of view; bring it to the user on open.
+    // scrollIntoView's own `behavior` option ignores the CSS reduced-motion override,
+    // so it's gated here explicitly.
     if (window.innerWidth <= 860) {
-      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      panelRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
     }
   }, [founderId, claimId]);
   // Esc closes the evidence rail — a keyboard exit from the panel.

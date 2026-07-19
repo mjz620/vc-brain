@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
 import type { Brief, FounderRow } from "../api";
-import { AXES, AXLABEL, Err, Meters, Skeleton, Sparkline, stanceClass, TREND } from "../components";
+import { AXES, AXLABEL, Err, Meters, Skeleton, Sparkline, stanceClass, TrendGlyph } from "../components";
 
 /* Page 6 — side-by-side comparison. Columns are founders; rows are the three
    independent axes (score + stance + trend — NEVER averaged or totaled),
@@ -31,9 +31,12 @@ export default function Compare({ thesis, openFounder }:
     }
   }, [sel, rows, briefs, thesis]);
 
+  // At MAX, adding a new pick is a no-op rather than silently evicting the oldest —
+  // the picker button below is disabled instead, so nothing changes without an
+  // explicit deselect first.
   const toggle = (id: string) => setSel((s) =>
     s.includes(id) ? s.filter((x) => x !== id)
-      : s.length >= MAX ? [...s.slice(1), id] : [...s, id]);
+      : s.length >= MAX ? s : [...s, id]);
 
   const screened = (rows || []).filter((f) => f.axes.some((a) => a.score != null));
   const picked = sel.map((id) => screened.find((f) => f.id === id))
@@ -58,6 +61,9 @@ export default function Compare({ thesis, openFounder }:
             {screened.map((f) => (
               <button key={f.id}
                 className={`minibtn ${sel.includes(f.id) ? "primary" : ""}`}
+                disabled={!sel.includes(f.id) && sel.length >= MAX}
+                title={!sel.includes(f.id) && sel.length >= MAX
+                  ? `deselect one first — comparing max ${MAX} at a time` : undefined}
                 onClick={() => toggle(f.id)}>{f.name}</button>
             ))}
           </div>
@@ -73,8 +79,8 @@ export default function Compare({ thesis, openFounder }:
                     <th />
                     {picked.map((f) => (
                       <th key={f.id} className="colh">
-                        <span style={{ cursor: "pointer" }} onClick={() => openFounder(f.id)}
-                          title="open memo & decision">{f.name}</span>
+                        <button className="rowlink" onClick={() => openFounder(f.id)}
+                          title="open memo & decision">{f.name}</button>
                       </th>
                     ))}
                   </tr>
@@ -90,7 +96,7 @@ export default function Compare({ thesis, openFounder }:
                             {a && a.score != null ? (
                               <>
                                 <span className={`cmp-score ${stanceClass(a.stance)}`}>
-                                  {a.score} {TREND[a.trend || "new"]}
+                                  {a.score} <TrendGlyph trend={a.trend} />
                                 </span>
                                 <span className={`axmini ${stanceClass(a.stance)}`}>
                                   <em>{a.stance}</em>
@@ -102,7 +108,7 @@ export default function Compare({ thesis, openFounder }:
                       })}
                     </tr>
                   ))}
-                  <tr>
+                  <tr className="cmp-sep">
                     <td className="rowh">Signal / Coverage</td>
                     {picked.map((f) => (
                       <td key={f.id}><Meters signal={f.signal} coverage={f.coverage} /></td>

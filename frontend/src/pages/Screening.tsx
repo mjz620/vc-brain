@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
 import type { FounderRow } from "../api";
-import { AXES, AXLABEL, Err, Meters, Skeleton, Sparkline, stanceClass, TREND } from "../components";
+import { AXES, AXLABEL, Err, Meters, Skeleton, Sparkline, stanceClass, TrendGlyph } from "../components";
 
 /* Page 2 — "Three independent verdicts, never averaged." */
 export default function Screening({ thesis, openFounder }:
@@ -51,6 +51,11 @@ export default function Screening({ thesis, openFounder }:
             <span className="count">{rest.length}</span></div>
           <input className="filter" placeholder="filter by name / source…"
             value={filter} onChange={(e) => setFilter(e.target.value)} />
+          {rest.length === 0 ? (
+            <p className="empty">
+              {filter ? "no founders match this filter." : "no founders screened under this thesis yet."}
+            </p>
+          ) : (
           <div className="tablewrap">
           <table className="funnel">
             <thead>
@@ -62,8 +67,10 @@ export default function Screening({ thesis, openFounder }:
                 const ax = Object.fromEntries(f.axes.map((a) => [a.axis, a]));
                 const unscreened = f.axes.every((a) => a.score == null);
                 return (
-                  <tr key={f.id} onClick={() => openFounder(f.id)}>
-                    <td className="fname">{f.name}</td>
+                  <tr key={f.id}>
+                    <td className="fname">
+                      <button className="rowlink" onClick={() => openFounder(f.id)}>{f.name}</button>
+                    </td>
                     <td><span className="src">{f.source}</span></td>
                     <td title={`persistent Founder Score · ${f.score_history_points} history points`}>
                       <Meters signal={f.signal} coverage={f.coverage} />
@@ -75,7 +82,7 @@ export default function Screening({ thesis, openFounder }:
                         return (
                           <td key={k} className={`axmini ${stanceClass(a?.stance)}`}>
                             {a && a.score != null
-                              ? <>{a.score} {TREND[a.trend || "new"]}<em>{a.stance}</em></> : "—"}
+                              ? <>{a.score} <TrendGlyph trend={a.trend} /><em>{a.stance}</em></> : "—"}
                           </td>
                         );
                       })}
@@ -85,6 +92,7 @@ export default function Screening({ thesis, openFounder }:
             </tbody>
           </table>
           </div>
+          )}
         </>
       )}
 
@@ -104,7 +112,7 @@ export default function Screening({ thesis, openFounder }:
 function FounderCard({ f, onOpen }: { f: FounderRow; onOpen: () => void }) {
   const ax = Object.fromEntries(f.axes.map((a) => [a.axis, a]));
   return (
-    <div className="card" onClick={onOpen}>
+    <button className="card" onClick={onOpen}>
       <div className="top">
         <span className="name">{f.name}</span>
         <span className="pill">{f.source === "deck" ? "inbound" : f.source}</span>
@@ -122,13 +130,13 @@ function FounderCard({ f, onOpen }: { f: FounderRow; onOpen: () => void }) {
               <div className="k">{AXLABEL[k]}</div>
               <div className="v">
                 {a && a.score != null
-                  ? <>{a.score}<small>{TREND[a.trend || "new"]} {a.stance}</small></> : "—"}
+                  ? <>{a.score}<small><TrendGlyph trend={a.trend} /> {a.stance}</small></> : "—"}
               </div>
             </div>
           );
         })}
       </div>
       <Meters signal={f.signal} coverage={f.coverage} />
-    </div>
+    </button>
   );
 }

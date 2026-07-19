@@ -73,8 +73,10 @@ function ThesisEditor({ onSaved }: { onSaved: (file: string) => void }) {
         <label>Stage<input className="filter" value={cfg.stage} onChange={(e) => set("stage", e.target.value)} /></label>
         <label>Sectors<input className="filter" value={cfg.sectors} onChange={(e) => set("sectors", e.target.value)} /></label>
         <label>Geography<input className="filter" value={cfg.geography} onChange={(e) => set("geography", e.target.value)} /></label>
-        <label>Check size $<input className="filter" type="number" value={cfg.check_size_usd} onChange={(e) => set("check_size_usd", e.target.value)} /></label>
-        <label>Ownership %<input className="filter" type="number" value={cfg.ownership_target_pct} onChange={(e) => set("ownership_target_pct", e.target.value)} /></label>
+        <label>Check size $<input className="filter" type="number" min="0" step="1000"
+          value={cfg.check_size_usd} onChange={(e) => set("check_size_usd", e.target.value)} /></label>
+        <label>Ownership %<input className="filter" type="number" min="0" max="100" step="0.5"
+          value={cfg.ownership_target_pct} onChange={(e) => set("ownership_target_pct", e.target.value)} /></label>
         <label>Risk appetite
           <select className="filter" value={cfg.risk_appetite} onChange={(e) => set("risk_appetite", e.target.value)}>
             <option>high</option><option>medium</option><option>low</option>
@@ -83,7 +85,9 @@ function ThesisEditor({ onSaved }: { onSaved: (file: string) => void }) {
         <label>Scan topics<input className="filter" value={cfg.topics} onChange={(e) => set("topics", e.target.value)} /></label>
       </div>
       <button className="minibtn primary" onClick={save}>Save thesis</button>
-      {state && <span className="muted" style={{ marginLeft: 10, fontSize: 12.5 }}>{state}</span>}
+      {state && (state.startsWith("⚠") ? <Err msg={state.slice(2)} /> : (
+        <span className="muted" style={{ marginLeft: 10, fontSize: 12.5 }} aria-live="polite">{state}</span>
+      ))}
     </div>
   );
 }
@@ -102,7 +106,8 @@ function QueryBox({ openFounder }: { openFounder: (id: string) => void }) {
   return (
     <div className="block">
       <h3>One compound query, one pass — not five manual filters</h3>
-      <textarea className="filter" rows={2} value={q} onChange={(e) => setQ(e.target.value)} />
+      <textarea className="filter" rows={2} value={q} onChange={(e) => setQ(e.target.value)}
+        aria-label="Multi-attribute query" />
       <button className="minibtn primary" onClick={run} disabled={busy}>
         {busy ? "parsing…" : "Run query"}
       </button>
@@ -134,8 +139,10 @@ function QueryBox({ openFounder }: { openFounder: (id: string) => void }) {
               <thead><tr><th>Founder</th><th>Matched</th><th>Signal / Cov</th></tr></thead>
               <tbody>
                 {res.results.map((r) => (
-                  <tr key={r.id} onClick={() => openFounder(r.id)}>
-                    <td className="fname">{r.name}</td>
+                  <tr key={r.id}>
+                    <td className="fname">
+                      <button className="rowlink" onClick={() => openFounder(r.id)}>{r.name}</button>
+                    </td>
                     <td>{r.matched_keywords.map((k) => <span key={k} className="src" style={{ marginRight: 3 }}>{k}</span>)}</td>
                     <td><b>{r.signal ?? "—"}</b> · <span className="cov">{Math.round(r.coverage * 100)}%</span></td>
                   </tr>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import * as api from "../api";
 import type { Brief, Claim, Trace } from "../api";
-import { Err, FounderSwitcher, Skeleton, TierChip, TracePanel } from "../components";
+import { Err, FounderSwitcher, Skeleton, TIER_SHORT, TierChip, TracePanel } from "../components";
 
 /* Page 3 — "Watch it argue with itself."
    Claim ledger (contradicted pinned first) + adjudication transcripts via the trace
@@ -103,10 +103,23 @@ export default function Diligence({ thesis, founderId, founders, openFounder }: 
 
             <div className="section-h"><h2>Claim ledger — grouped by tier</h2>
               <span className="count">click any claim for its full trace</span></div>
-            {claims.filter((c) => c.corroboration !== "contradicted").map((c) => (
-              <ClaimRow key={c.id} c={c} active={traceId === c.id}
-                onClick={() => setTraceId(c.id)} />
-            ))}
+            {claims.length === 0 && <p className="empty">no claims extracted for this founder.</p>}
+            {(() => {
+              const rest = claims.filter((c) => c.corroboration !== "contradicted");
+              let lastTier: string | null = null;
+              return rest.map((c) => {
+                const showHeader = c.corroboration !== lastTier;
+                lastTier = c.corroboration;
+                return (
+                  <div key={c.id}>
+                    {showHeader && (
+                      <h4 className="tier-h">{TIER_SHORT[c.corroboration] || c.corroboration}</h4>
+                    )}
+                    <ClaimRow c={c} active={traceId === c.id} onClick={() => setTraceId(c.id)} />
+                  </div>
+                );
+              });
+            })()}
           </div>
           {traceId && (
             <TracePanel founderId={founderId} claimId={traceId}
@@ -146,10 +159,10 @@ function VerdictLine({ founderId, claimId }: { founderId: string; claimId: strin
     api.getTraceCached(founderId, claimId).then((t) => { if (live) setTrace(t); }).catch(() => {});
     return () => { live = false; };
   }, [founderId, claimId]);
-  if (!trace) return <div className="verdict">…</div>;
-  if (!trace.adjudication) return <div className="verdict">uncontested — rubric-anchored, no debate needed</div>;
+  if (!trace) return <div className="claim-verdict">…</div>;
+  if (!trace.adjudication) return <div className="claim-verdict">uncontested — rubric-anchored, no debate needed</div>;
   return (
-    <div className="verdict">
+    <div className="claim-verdict">
       judge: trust <b>{trace.rubric_trust.toFixed(2)} → {trace.adjudication.trust.toFixed(2)}</b>
       {" — "}{trace.adjudication.rationale}
     </div>
@@ -158,11 +171,12 @@ function VerdictLine({ founderId, claimId }: { founderId: string; claimId: strin
 
 function ClaimRow({ c, active, onClick }: { c: Claim; active: boolean; onClick: () => void }) {
   return (
-    <div className={`claimrow ${active ? "active" : ""}`} onClick={onClick}>
+    <button className={`claimrow ${active ? "active" : ""}`} onClick={onClick}
+      aria-label={`${c.id}, ${c.corroboration} — open full trace`}>
       <span className="cr-id">{c.id}</span>
       <TierChip tier={c.corroboration} trust={c.trust} />
       <span className="cr-axis">{c.axis}</span>
       <span className="cr-text">{c.text}</span>
-    </div>
+    </button>
   );
 }
