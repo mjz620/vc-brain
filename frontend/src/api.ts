@@ -203,14 +203,25 @@ export interface ChannelIntel {
   live: { signals: number; resolved: number; founders: number; resolve_rate: number } | null;
   covered_live: boolean;
 }
+export interface NetNode {
+  id: string; type: "channel" | "startup" | "investor"; label: string; size: number;
+  cluster: string;
+  covered_live?: boolean;         // channel
+  sector?: string; outcome?: string; tier?: string;  // startup
+  backed?: string[];              // investor
+}
+export interface NetLink { source: string; target: string; kind: "sourced" | "seed"; }
 export interface Network {
   note: string;
   channels: Record<string, string>;
   startups: RefStartup[];
+  nodes: NetNode[];
+  links: NetLink[];
   channel_intelligence: ChannelIntel[];
   top_investors: { name: string; count: number; startups: string[] }[];
   underexplored_channels: string[];
   live_channels: Record<string, { signals: number; resolved: number; founders: number; resolve_rate: number }>;
+  counts: { startups: number; channels: number; investors: number; edges: number };
 }
 export interface Quality {
   channels: Record<string, { ingested: number; resolved: number;

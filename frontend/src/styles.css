@@ -575,22 +575,28 @@ details.provwrap summary:hover { color: var(--fg); }
 .net-graph { border: 1px solid var(--line); border-radius: var(--r);
   background: var(--panel); box-shadow: var(--shadow); padding: 12px;
   margin-bottom: 20px; }
-.net-graph svg { width: 100%; min-width: 620px; height: auto; display: block; }
-.net-graph .edge { fill: none; stroke: var(--line); stroke-width: 1;
-  transition: stroke .12s, opacity .12s; }
-.net-graph .edge.hot { stroke: var(--accent); stroke-width: 1.5; }
-.net-graph .dim { opacity: 0.22; }
-.net-graph g { transition: opacity .12s; cursor: default; }
-.net-graph text { font-family: var(--mono); font-size: 10.5px; fill: var(--fg); }
-.net-graph .nnode-ch rect { fill: var(--accent-weak); stroke: var(--accent); }
-.net-graph .nnode-ch text { fill: var(--accent); font-weight: 650; }
-.net-graph .nnode-st rect { fill: var(--panel); stroke: var(--line); }
-.net-graph .nnode-inv rect { fill: var(--bg2); stroke: none; }
-.net-graph .nnode-inv text { fill: var(--muted); }
-.net-graph .tablewrap { overflow: visible; }
+/* force-directed graph (imperative rAF; see components/ForceGraph.tsx) */
+.fg { width: 100%; min-width: 620px; height: auto; display: block; touch-action: none;
+  user-select: none; }
+.fg-edge { stroke: var(--line); stroke-width: 1; transition: opacity .15s; }
+.fg-e-seed { stroke-dasharray: 2 3; }
+.fg-node { cursor: grab; transition: opacity .15s; }
+.fg-node:active { cursor: grabbing; }
+.fg-node.dim { opacity: 0.18; }
+.fg-edge.dim { opacity: 0.08; }
+.fg text { font-family: var(--font); font-size: 10px; fill: var(--muted);
+  pointer-events: none; }
+.fg-channel circle { fill: var(--accent-weak); stroke: var(--accent); stroke-width: 1.5; }
+.fg-channel text { fill: var(--accent); font-weight: 650; font-size: 11px; }
+.fg-startup circle { fill: var(--panel); stroke: var(--muted); stroke-width: 1.2; }
+.fg-startup text { fill: var(--fg); }
+.fg-investor circle { fill: var(--bg2); stroke: var(--faint); stroke-width: 1; }
+.fg-node:hover circle { stroke: var(--accent); stroke-width: 2; }
 .net-legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
   margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line);
   font-size: 11px; color: var(--muted); }
+.net-cap { color: var(--faint); }
+.net-cap b { color: var(--fg); font-size: 12px; }
 .net-lg::before { content: ""; display: inline-block; width: 9px; height: 9px;
   border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 .net-lg-ch::before { background: var(--accent); }
