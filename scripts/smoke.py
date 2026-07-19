@@ -57,7 +57,8 @@ def main():
             check("trace endpoint", t.status_code == 200
                   and t.json()["claim"]["evidence_url"])
 
-    # 3. Inbound apply — the judge's own company must not dead-end
+    # 3. Inbound apply — the judge's own company must not dead-end: it must end in a
+    # real memo (or an honest kill/error), watchable via GET /api/runs/{fid}.
     if not args.skip_llm:
         r = c.post("/api/apply", json={
             "company": "Smoke Test Co",
@@ -68,18 +69,50 @@ def main():
         check("apply screened (or surfaced error)",
               body.get("screened") or body.get("screen_error"),
               str(body.get("screen_error")))
+        fid = body.get("founder_id")
 
-        # 4. NL query on a NOVEL judge-typed query (never cached)
+        run, state, deadline = {}, None, time.time() + 300
+        while time.time() < deadline:
+            rr = c.get(f"/api/runs/{fid}")
+            if rr.status_code != 200:
+                break
+            run = rr.json()
+            state = run.get("state")
+            if state in ("ok", "error"):
+                break
+            time.sleep(3)
+        done_detail = next((s.get("detail") or "" for s in run.get("stages", [])
+                            if s.get("stage") == "done"), "")
+        check("apply run reached a terminal state", state in ("ok", "error"),
+              f"state={state}")
+        check("apply run finished without error", state == "ok", done_detail)
+        if state == "ok" and "killed" in done_detail:
+            check("apply run ended honestly (killed at first pass, no memo)",
+                  not run.get("has_memo"), done_detail)
+        elif state == "ok":
+            check("memo exists after apply run", run.get("has_memo"), done_detail)
+            brief = c.get(f"/api/founders/{fid}").json()
+            check("apply memo is renderable", bool(brief.get("memo_md")),
+                  f"decision={brief.get('decision')}")
+
+        # 4. NL query on a NOVEL judge-typed query (never cached). Parse failures
+        # come back 200 with an `error` sentence — that still counts as a failure here.
         r = c.get("/api/query", params={
             "q": f"technical founder, AI infra, enterprise traction {int(time.time())}"})
-        check("novel NL query", r.status_code == 200,
-              r.text[:120] if r.status_code != 200 else
-              f"criteria={len(r.json().get('criteria', []))}")
+        qj = r.json() if r.status_code == 200 else {}
+        check("novel NL query", r.status_code == 200 and not qj.get("error"),
+              qj.get("error") or r.text[:120] if (r.status_code != 200 or qj.get("error"))
+              else f"criteria={len(qj.get('criteria', []))}")
 
-    # 5. Interactive endpoints added by later blocks (must exist, may be gated)
+    # 5. Live scan — real adapter call, one source (needs network, not an LLM key)
     r = c.post("/api/scan", params={"source": "hn"})
-    check("live scan endpoint exists", r.status_code != 404,
-          f"status={r.status_code}")
+    check("live scan endpoint", r.status_code == 200, f"status={r.status_code}")
+    if r.status_code == 200:
+        sj = r.json()
+        check("scan payload sane",
+              "hn" in sj.get("counts", {}) and "resolved" in sj and "dropped" in sj,
+              str({k: sj.get(k) for k in ("counts", "resolved", "dropped",
+                                          "new_signals")}))
     r = c.get("/api/quality")
     check("data-quality endpoint exists", r.status_code != 404,
           f"status={r.status_code}")

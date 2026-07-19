@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import * as api from "../api";
 import type { Brief, Claim } from "../api";
-import { Err, Skeleton, TierChip, TracePanel } from "../components";
+import { Err, FounderSwitcher, Skeleton, TierChip, TracePanel } from "../components";
 
 /* Page 3 — "Watch it argue with itself."
    Claim ledger (contradicted pinned first) + adjudication transcripts via the trace
@@ -37,7 +37,7 @@ export default function Diligence({ thesis, founderId, founders, openFounder }: 
   if (!founderId) {
     return (
       <div>
-        <PageHead />
+        <PageHead founderId={founderId} founders={founders} openFounder={openFounder} />
         <p className="muted">Pick a founder with a diligence run:</p>
         <div className="picker">
           {founders.map((f) => (
@@ -55,7 +55,7 @@ export default function Diligence({ thesis, founderId, founders, openFounder }: 
 
   return (
     <div>
-      <PageHead name={founderId.replace("founder-", "")} />
+      <PageHead founderId={founderId} founders={founders} openFounder={openFounder} />
       {err && <Err msg={err} />}
       {!brief && !err && <Skeleton lines={10} />}
       {brief && (
@@ -103,10 +103,15 @@ export default function Diligence({ thesis, founderId, founders, openFounder }: 
   );
 }
 
-function PageHead({ name }: { name?: string }) {
+function PageHead({ founderId, founders, openFounder }: {
+  founderId: string | null;
+  founders: { id: string; name: string }[]; openFounder: (id: string) => void;
+}) {
+  const name = founderId ? founderId.replace("founder-", "") : null;
   return (
     <div className="page-h">
       <h1>Diligence{name ? <span className="h-founder"> · {name}</span> : ""}</h1>
+      <FounderSwitcher founderId={founderId} founders={founders} openFounder={openFounder} />
       <p className="page-sub">
         Workers extract claims; contested claims go through a <b>prosecutor → defender
         → judge</b> debate whose verdict overrides the rubric; a no-LLM validator

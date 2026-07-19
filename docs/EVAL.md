@@ -20,7 +20,7 @@
 
 - founder-tracewell: screen 0.0s → extract 0.0s → adjudicate 0.0s → debate 0.0s → synthesize 0.0s = 0.1s
 - founder-corevance: screen 0.0s → extract 0.0s → adjudicate 0.0s → debate 0.0s → synthesize 0.0s = 0.0s
-- founder-parcelmind: screen 0.0s → extract 0.0s → adjudicate 0.0s → debate 0.0s → synthesize 0.0s = 0.0s
+- founder-parcelmind: screen 0.0s → extract 0.0s → adjudicate 0.0s → debate 0.0s → synthesize 0.0s = 0.1s
 - founder-corevance: screen 0.0s → extract 0.0s → adjudicate 0.0s → debate 0.0s → synthesize 0.0s = 0.0s
 
 ## Memory

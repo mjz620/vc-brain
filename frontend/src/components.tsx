@@ -169,3 +169,24 @@ export function Skeleton({ lines = 3 }: { lines?: number }) {
 export function Err({ msg }: { msg: string }) {
   return <div className="err">⚠ {msg}</div>;
 }
+
+/* Persistent founder switcher (page header): lateral movement at any time —
+   never a dead end. Empty option resets to the picker. */
+export function FounderSwitcher({ founderId, founders, openFounder }: {
+  founderId: string | null;
+  founders: { id: string; name: string }[];
+  openFounder: (id: string) => void;
+}) {
+  return (
+    <select className="control" value={founderId ?? ""}
+      onChange={(e) => openFounder(e.target.value)} title="switch founder">
+      <option value="">all founders…</option>
+      {founderId && !founders.some((f) => f.id === founderId) && (
+        <option value={founderId}>{founderId.replace("founder-", "")}</option>
+      )}
+      {founders.map((f) => (
+        <option key={f.id} value={f.id}>{f.name}</option>
+      ))}
+    </select>
+  );
+}

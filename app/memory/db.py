@@ -140,6 +140,17 @@ CREATE TABLE IF NOT EXISTS kill_log (
     logged_at  TEXT NOT NULL
 );
 
+-- Live run progress (apply -> memo): one row per (founder, stage), rewritten as the
+-- pipeline advances so the UI can render a watchable run. Errors land in detail.
+CREATE TABLE IF NOT EXISTS run_status (
+    founder_id TEXT NOT NULL,
+    stage      TEXT NOT NULL,           -- ingest|screen|extract|adjudicate|debate|synthesize|done
+    status     TEXT NOT NULL,           -- queued | running | ok | error
+    detail     TEXT,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (founder_id, stage)
+);
+
 -- Activate (brief MVP 5): outreach drafts, each tied to the signal that triggered it.
 CREATE TABLE IF NOT EXISTS outreach (
     founder_id TEXT NOT NULL REFERENCES founders(id),

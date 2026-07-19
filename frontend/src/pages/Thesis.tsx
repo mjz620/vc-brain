@@ -107,7 +107,8 @@ function QueryBox({ openFounder }: { openFounder: (id: string) => void }) {
         {busy ? "parsing…" : "Run query"}
       </button>
       {err && <Err msg={err} />}
-      {res && (
+      {res?.error && <Err msg={res.error} />}
+      {res && !res.error && (
         <>
           <div className="chips">
             {res.criteria.map((c, i) => (

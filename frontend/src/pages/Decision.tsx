@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
 import type { Axis, Brief } from "../api";
-import { AXES, AXLABEL, Err, Memo, Skeleton, stanceClass, TracePanel, TREND } from "../components";
+import { AXES, AXLABEL, Err, FounderSwitcher, Memo, Skeleton, stanceClass, TracePanel, TREND } from "../components";
 
 /* Page 4 — "A decision you could act on in 24h, every sentence traceable." */
 export default function Decision({ thesis, founderId, founders, openFounder }: {
@@ -22,7 +22,10 @@ export default function Decision({ thesis, founderId, founders, openFounder }: {
   if (!founderId) {
     return (
       <div>
-        <div className="page-h"><h1>Memo &amp; Decision</h1></div>
+        <div className="page-h">
+          <h1>Memo &amp; Decision</h1>
+          <FounderSwitcher founderId={founderId} founders={founders} openFounder={openFounder} />
+        </div>
         <p className="muted">Pick a founder:</p>
         <div className="picker">
           {founders.map((f) => (
@@ -41,6 +44,7 @@ export default function Decision({ thesis, founderId, founders, openFounder }: {
     <div>
       <div className="page-h">
         <h1>Memo &amp; Decision<span className="h-founder"> · {founderId.replace("founder-", "")}</span></h1>
+        <FounderSwitcher founderId={founderId} founders={founders} openFounder={openFounder} />
         <p className="page-sub">Recommendation first; every factual sentence carries its claim id —
           click one to trace it to the raw signal. Gaps are flagged in the brief's own words, never filled.</p>
       </div>

@@ -46,10 +46,11 @@ export default function App() {
       .then((fs: FounderRow[]) =>
         setMemoFounders(fs.filter((f) => f.has_memo).map((f) => ({ id: f.id, name: f.name }))))
       .catch(() => {});
-  }, [thesis]);
+  }, [thesis, page]); // page dep: a live apply run may have landed a new memo
 
-  const openDiligence = (id: string) => { setFounderId(id); setPage("diligence"); };
-  const openDecision = (id: string) => { setFounderId(id); setPage("decision"); };
+  // Empty id resets to the picker (the "all founders…" option in page switchers).
+  const openDiligence = (id: string) => { setFounderId(id || null); setPage("diligence"); };
+  const openDecision = (id: string) => { setFounderId(id || null); setPage("decision"); };
 
   return (
     <div className="shell">
@@ -74,7 +75,9 @@ export default function App() {
       </nav>
 
       <main className="main">
-        {page === "sourcing" && <Sourcing thesis={thesis} openFounder={openDiligence} />}
+        {page === "sourcing" && (
+          <Sourcing thesis={thesis} openFounder={openDiligence} openMemo={openDecision} />
+        )}
         {page === "screening" && <Screening thesis={thesis} openFounder={openDecision} />}
         {page === "diligence" && (
           <Diligence thesis={thesis} founderId={founderId}

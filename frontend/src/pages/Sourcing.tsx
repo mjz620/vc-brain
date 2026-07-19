@@ -1,26 +1,36 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import * as api from "../api";
-import type { Channel, Outreach, SourcedFounder, SourcingFeed } from "../api";
+import type { Channel, Outreach, RunStatus, SourcedFounder, SourcingFeed } from "../api";
 import { Err, Skeleton } from "../components";
 
+const SCAN_SOURCES = ["github", "hn", "arxiv", "producthunt", "yc"];
+
 /* Page 1 — "It finds founders before they raise."
-   Outbound: ranked thesis-matched feed + channel yields + Activate.
+   Outbound: ranked thesis-matched feed + channel yields + live Scan now + Activate.
    Inbound: the apply form (deck + name is the minimum bar) — both tracks converge. */
-export default function Sourcing({ thesis, openFounder }:
-  { thesis: string; openFounder: (id: string) => void }) {
+export default function Sourcing({ thesis, openFounder, openMemo }:
+  { thesis: string; openFounder: (id: string) => void; openMemo: (id: string) => void }) {
   const [feed, setFeed] = useState<SourcingFeed | null>(null);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [outreach, setOutreach] = useState<{ fid: string; draft: Outreach } | null>(null);
   const [drafting, setDrafting] = useState<string | null>(null);
+  const [prevIds, setPrevIds] = useState<Set<string> | null>(null);
 
-  useEffect(() => {
-    setFeed(null);
+  const load = useCallback(() => {
     api.getSourcing(thesis).then(setFeed).catch((e) => setErr(e.message));
     api.getChannels().then((c) => { setChannels(c.channels); setSuggestion(c.suggestion); })
       .catch((e) => setErr(e.message));
   }, [thesis]);
+
+  useEffect(() => { setFeed(null); setPrevIds(null); load(); }, [load]);
+
+  // After a live scan: remember what was already known so new rows get flagged.
+  const onScanDone = () => {
+    setPrevIds(new Set((feed?.founders || []).map((f) => f.id)));
+    load();
+  };
 
   const activate = async (f: SourcedFounder) => {
     setDrafting(f.id);
@@ -47,6 +57,7 @@ export default function Sourcing({ thesis, openFounder }:
       </div>
 
       <div className="section-h"><h2>Channel yield — sourcing graph</h2></div>
+      <ScanNow thesis={thesis} onDone={onScanDone} />
       {channels.length === 0 ? <Skeleton lines={2} /> : (
         <div className="chan-row">
           {channels.filter((c) => !["deck", "web", "manual"].includes(c.source)).map((c) => (
@@ -82,6 +93,10 @@ export default function Sourcing({ thesis, openFounder }:
                     <td className="fname" onClick={() => f.screened && openFounder(f.id)}
                         style={{ cursor: f.screened ? "pointer" : "default" }}>
                       {f.name}
+                      {prevIds && !prevIds.has(f.id) && (
+                        <span className="src" style={{ marginLeft: 5 }}
+                          title="resolved by the last live scan">new</span>
+                      )}
                       {f.signal != null && f.signal >= 7 && f.coverage < 0.3 && (
                         <span className="coldstart" title="high verified signal, thin record — the cold-start case">cold-start</span>
                       )}
@@ -104,7 +119,7 @@ export default function Sourcing({ thesis, openFounder }:
 
         <div>
           <div className="section-h"><h2>Inbound — apply</h2></div>
-          <ApplyForm />
+          <ApplyForm openMemo={openMemo} />
           {outreach && (
             <div className="outreach-card">
               <div className="section-h" style={{ margin: "0 0 8px" }}>
@@ -128,23 +143,75 @@ export default function Sourcing({ thesis, openFounder }:
   );
 }
 
-function ApplyForm() {
+function ScanNow({ thesis, onDone }: { thesis: string; onDone: () => void }) {
+  const [source, setSource] = useState("hn");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const go = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await api.postScan(source, thesis);
+      const n = r.counts[source];
+      setMsg(typeof n === "string"
+        ? `⚠ ${source}: ${n}`
+        : `${n} signals fetched live from ${source} — ${r.resolved} resolved, `
+          + `${r.dropped} to drop-log`
+          + (r.new_founders.length
+            ? `; new founders: ${r.new_founders.map((f) => f.name).join(", ")}`
+            : ""));
+      onDone();
+    } catch (e) {
+      setMsg(`⚠ ${(e as Error).message}`);
+    }
+    setBusy(false);
+  };
+  return (
+    <div style={{ margin: "0 0 12px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <select className="control" value={source} onChange={(e) => setSource(e.target.value)}
+        title="source to scan live (one per call — rate-limited)">
+        {SCAN_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+      </select>
+      <button className="minibtn primary" onClick={go} disabled={busy}>
+        {busy ? "scanning live…" : "Scan now (live)"}
+      </button>
+      {msg && <span className="muted" style={{ fontSize: 12.5 }}>{msg}</span>}
+    </div>
+  );
+}
+
+const STATUS_MARK: Record<string, string> = { ok: "✓", error: "✗", running: "…", queued: "·" };
+
+function ApplyForm({ openMemo }: { openMemo: (id: string) => void }) {
   const [company, setCompany] = useState("");
   const [deck, setDeck] = useState("");
   const [state, setState] = useState<string | null>(null);
+  const [fid, setFid] = useState<string | null>(null);
+  const [run, setRun] = useState<RunStatus | null>(null);
+
   const submit = async () => {
-    setState("submitting…");
+    setState("submitting… (screening runs before this returns)");
+    setFid(null); setRun(null);
     try {
       const r = await api.postApply(company, deck);
-      setState(r.duplicate
-        ? "already on file (dedup) — nothing re-ingested"
-        : r.screened
-          ? `application ${r.founder_id} ingested + screened — see Screening`
-          : `application ${r.founder_id} ingested — screening pending`);
+      setState(r.screen_error
+        ? `⚠ ${r.founder_id}: ${r.screen_error}`
+        : r.killed
+          ? `application ${r.founder_id} screened — killed at first pass (see run below)`
+          : `application ${r.founder_id} ingested + screened — full diligence running`);
+      setFid(r.founder_id);
     } catch (e) {
       setState(`⚠ ${(e as Error).message}`);
     }
   };
+
+  // Poll the run every 1.5s until it reaches done/error — a watchable pipeline.
+  useEffect(() => {
+    if (!fid) return;
+    if (run && run.state !== "running") return;
+    const t = setInterval(() => { api.getRun(fid).then(setRun).catch(() => {}); }, 1500);
+    return () => clearInterval(t);
+  }, [fid, run]);
+
   return (
     <div className="apply">
       <p className="muted" style={{ margin: "0 0 8px", fontSize: 12.5 }}>
@@ -157,6 +224,21 @@ function ApplyForm() {
       <button className="minibtn primary" onClick={submit}
         disabled={!company.trim() || !deck.trim()}>Submit application</button>
       {state && <div className="muted" style={{ marginTop: 8, fontSize: 12.5 }}>{state}</div>}
+      {fid && run && (
+        <div style={{ marginTop: 10 }}>
+          {run.stages.map((s) => (
+            <div key={s.stage} className="muted" style={{ fontSize: 12.5 }}>
+              {STATUS_MARK[s.status] || "·"} {s.stage} — {s.status}
+              {s.seconds != null ? ` (${s.seconds.toFixed(1)}s)` : ""}
+              {s.detail ? ` — ${s.detail}` : ""}
+            </div>
+          ))}
+          {run.state === "ok" && run.has_memo && (
+            <button className="minibtn primary" style={{ marginTop: 8 }}
+              onClick={() => openMemo(fid)}>Open memo &amp; decision →</button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

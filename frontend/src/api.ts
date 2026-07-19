@@ -103,8 +103,40 @@ export interface Trace {
     decided_at: string;
   } | null;
 }
+export interface RunStage {
+  stage: string;
+  status: string; // queued | running | ok | error
+  detail: string;
+  updated_at: string;
+  seconds: number | null;
+}
+export interface RunStatus {
+  founder_id: string;
+  stages: RunStage[];
+  has_memo: boolean;
+  state: string; // running | ok | error | none
+}
+export interface ScanResult {
+  source: string;
+  topics: string[];
+  counts: Record<string, number | string>;
+  resolved: number;
+  dropped: number;
+  new_signals: number;
+  new_founders: { id: string; name: string; new_signals: number }[];
+}
+export interface ApplyResult {
+  founder_id: string;
+  signal_id: string;
+  duplicate: boolean;
+  screened: boolean;
+  screen_error: string | null;
+  killed: boolean;
+  run_started: boolean;
+}
 export interface QueryResult {
   query: string;
+  error?: string; // parse failure — explained, nothing guessed
   criteria: { text: string; kind: string; value: string }[];
   ignored_criteria: { text: string; reason: string }[];
   results: {
@@ -152,11 +184,17 @@ export const postActivate = (fid: string, thesis: string) =>
 export const runQuery = (q: string) =>
   j<QueryResult>(`/api/query?q=${encodeURIComponent(q)}`);
 export const postApply = (company: string, deck_text: string) =>
-  j<{ founder_id: string; screened: boolean; duplicate: boolean }>("/api/apply", {
+  j<ApplyResult>("/api/apply", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ company, deck_text }),
   });
+export const getRun = (fid: string) => j<RunStatus>(`/api/runs/${fid}`);
+export const postScan = (source: string, thesis: string) =>
+  j<ScanResult>(
+    `/api/scan?source=${encodeURIComponent(source)}&thesis=${encodeURIComponent(thesis)}`,
+    { method: "POST" },
+  );
 export const saveThesis = (cfg: object) =>
   j<Thesis>("/api/thesis", {
     method: "POST",

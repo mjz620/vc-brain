@@ -3,6 +3,9 @@
 No LLM calls except the optional NL-query endpoint (cached). Read-only over vc_brain.db.
 """
 import json
+import threading
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -55,6 +58,106 @@ def _source_of(conn, founder_id: str) -> str:
         "WHERE (s.founder_id=? OR r.founder_id=?) ORDER BY s.source LIMIT 1",
         (founder_id, founder_id)).fetchone()
     return row["source"] if row else "unknown"
+
+
+# --- live run progress (apply -> memo) -------------------------------------
+_RUN_STAGES = ("ingest", "screen", "extract", "adjudicate", "debate", "synthesize", "done")
+_PIPELINE_STAGES = ("extract", "adjudicate", "debate", "synthesize")
+
+
+def _set_stage(fid: str, stage: str, status: str, detail: str = "") -> None:
+    conn = _conn()  # short-lived conn: safe from any thread
+    conn.execute("DELETE FROM run_status WHERE founder_id=? AND stage=?", (fid, stage))
+    conn.execute("INSERT INTO run_status (founder_id, stage, status, detail, updated_at) "
+                 "VALUES (?,?,?,?,?)",
+                 (fid, stage, status, detail, datetime.now(timezone.utc).isoformat()))
+    conn.commit()
+
+
+def _clear_stage(fid: str, stage: str) -> None:
+    conn = _conn()
+    conn.execute("DELETE FROM run_status WHERE founder_id=? AND stage=?", (fid, stage))
+    conn.commit()
+
+
+# The diligence pipeline times its stages via instrument.stage; wrap it (in this
+# process only) so each stage also lands in run_status — the pipeline itself stays
+# untouched, and progress is keyed by founder_id so concurrent runs don't collide.
+_orig_stage = instrument.stage
+
+
+@contextmanager
+def _tracked_stage(conn, founder_id: str, name: str):
+    _set_stage(founder_id, name, "running")
+    try:
+        with _orig_stage(conn, founder_id, name):
+            yield
+    except Exception as e:
+        _set_stage(founder_id, name, "error", f"{type(e).__name__}: {e}")
+        raise
+    _set_stage(founder_id, name, "ok")
+
+
+instrument.stage = _tracked_stage
+
+
+def _run_pipeline_bg(fid: str, thesis_file: str | None) -> None:
+    """Background thread: full diligence on a fresh conn; errors land in run_status,
+    never swallowed."""
+    try:
+        from .diligence import pipeline
+        conn = _conn()
+        t = _thesis(thesis_file)
+        res = pipeline.run_diligence(conn, fid, t, replay=False)
+        _set_stage(fid, "done", "ok",
+                   f"{res['claims']} claims ({res['contested']} contested) -> "
+                   f"decision: {res['recommendation'].decision}")
+    except Exception as e:
+        _set_stage(fid, "done", "error", f"{type(e).__name__}: {e}")
+
+
+@app.get("/api/runs/{founder_id}")
+def get_run(founder_id: str):
+    """Ordered per-stage progress of a live apply->memo run, for a watchable UI."""
+    conn = _conn()
+    rows = conn.execute(
+        "SELECT stage, status, detail, updated_at FROM run_status WHERE founder_id=?",
+        (founder_id,)).fetchall()
+    by = {r["stage"]: r for r in rows}
+    lat = dict(instrument.latency_strip(conn, founder_id)["stages"])
+    stages = [{"stage": s, "status": by[s]["status"], "detail": by[s]["detail"] or "",
+               "updated_at": by[s]["updated_at"],
+               "seconds": lat.get(s) if by[s]["status"] == "ok" else None}
+              for s in _RUN_STAGES if s in by]
+    has_memo = conn.execute("SELECT 1 FROM memos WHERE founder_id=? LIMIT 1",
+                            (founder_id,)).fetchone() is not None
+    done = by.get("done")
+    state = (done["status"] if done and done["status"] in ("ok", "error")
+             else "running" if rows else "none")
+    return {"founder_id": founder_id, "stages": stages, "has_memo": has_memo,
+            "state": state}
+
+
+@app.post("/api/scan")
+def scan(source: str, topic: str | None = None, thesis: str | None = None):
+    """Live scan of ONE source (rate-limitable) with the real adapter — no replay.
+    Per-source failures come back in counts as 'error: ...', never a 500."""
+    from .sources import scanner
+    valid = [n for n, _ in scanner.ADAPTERS]
+    if source not in valid:
+        raise HTTPException(422, f"source must be one of: {', '.join(valid)}")
+    conn = _conn()
+    t = _thesis(thesis)
+    topics = scanner.topics_for(t, topic)
+    res = scanner.run_scan(conn, topics, replay=False, limit_per=5, sources=[source])
+    founders = []
+    for fid, n in scanner.newly_resolved_founders(conn, res["new_signal_ids"]):
+        row = conn.execute("SELECT name FROM founders WHERE id=?", (fid,)).fetchone()
+        founders.append({"id": fid, "name": row["name"] if row else fid,
+                         "new_signals": n})
+    return {"source": source, "topics": topics, "counts": res["counts"],
+            "resolved": res["resolved"], "dropped": res["dropped"],
+            "new_signals": len(res["new_signal_ids"]), "new_founders": founders}
 
 
 @app.get("/api/theses")
@@ -189,8 +292,10 @@ def nl_query(q: str):
     conn = _conn()
     try:
         return query_mod.run(conn, q, replay=config.replay_enabled(None))
-    except Exception as e:  # replay miss on an unseeded query, or no key
-        raise HTTPException(422, f"query could not run: {type(e).__name__}: {e}")
+    except Exception as e:  # parse failure / replay miss / no key — explain, don't 422
+        return {"query": q, "criteria": [], "ignored_criteria": [], "results": [],
+                "error": f"The query could not be parsed ({type(e).__name__}: {e}). "
+                         "Nothing was guessed — try rephrasing, or check the LLM key."}
 
 
 @app.get("/api/trace/{founder_id}/{claim_id}")
@@ -243,7 +348,9 @@ class Application(BaseModel):
 @app.post("/api/apply")
 def apply(body: Application):
     """Inbound intake (MVP 4): deck + company name is the minimum bar. The deck
-    lands as a self-reported signal in the same funnel as outbound."""
+    lands as a self-reported signal in the same funnel as outbound. Screening runs
+    synchronously; if it passes the first-pass kill screen, the FULL diligence
+    pipeline runs in a background thread — poll GET /api/runs/{founder_id}."""
     import re as _re
 
     from .memory.models import Founder, Signal
@@ -255,20 +362,49 @@ def apply(body: Application):
     sid, inserted = ingest.ingest_signal(conn, Signal(
         source="deck", source_url=f"application://{fid}", content=body.deck_text,
         observed_at=config.DEMO_TODAY, founder_id=fid))
+    _set_stage(fid, "ingest", "ok",
+               f"signal {sid}" + (" (duplicate — deck already on file)" if not inserted else ""))
+    for st in ("screen",) + _PIPELINE_STAGES + ("done",):
+        _set_stage(fid, st, "queued")
+
     from . import llm as llm_mod
-    screened, screen_error = False, None
+    screened, screen_error, killed = False, None, False
     if llm_mod.provider() is None and not config.replay_enabled(None):
         screen_error = "no LLM key configured — application stored, screening skipped"
+        _set_stage(fid, "screen", "error", screen_error)
+        for st in _PIPELINE_STAGES:
+            _clear_stage(fid, st)
+        _set_stage(fid, "done", "error", screen_error)
     else:
+        _set_stage(fid, "screen", "running")
         try:
             from .screening import axes as axes_mod
-            axes_mod.screen(conn, fid, _thesis(None),
-                            replay=config.replay_enabled(None))
+            res = axes_mod.screen(conn, fid, _thesis(None),
+                                  replay=config.replay_enabled(None))
             screened = True
+            if res.get("killed"):
+                killed = True
+                reason = res.get("kill_reason", "")
+                _set_stage(fid, "screen", "ok", f"killed at first pass: {reason}")
+                for st in _PIPELINE_STAGES:  # never ran — drop, don't fake
+                    _clear_stage(fid, st)
+                _set_stage(fid, "done", "ok",
+                           f"no memo — killed at first-pass screen: {reason}")
+            else:
+                _set_stage(fid, "screen", "ok", "3 axes scored independently")
         except Exception as e:  # founder is stored either way; the failure is surfaced
             screen_error = f"{type(e).__name__}: {e}"
+            _set_stage(fid, "screen", "error", screen_error)
+            for st in _PIPELINE_STAGES:
+                _clear_stage(fid, st)
+            _set_stage(fid, "done", "error", screen_error)
+
+    run_started = screened and not killed
+    if run_started:
+        threading.Thread(target=_run_pipeline_bg, args=(fid, None), daemon=True).start()
     return {"founder_id": fid, "signal_id": sid, "duplicate": not inserted,
-            "screened": screened, "screen_error": screen_error}
+            "screened": screened, "screen_error": screen_error, "killed": killed,
+            "run_started": run_started}
 
 
 @app.get("/api/outreach/{founder_id}")
