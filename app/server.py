@@ -61,8 +61,9 @@ def _source_of(conn, founder_id: str) -> str:
 
 
 # --- live run progress (apply -> memo) -------------------------------------
-_RUN_STAGES = ("ingest", "screen", "extract", "adjudicate", "debate", "synthesize", "done")
-_PIPELINE_STAGES = ("extract", "adjudicate", "debate", "synthesize")
+_RUN_STAGES = ("ingest", "screen", "news", "market", "extract", "adjudicate",
+               "debate", "synthesize", "done")
+_PIPELINE_STAGES = ("news", "market", "extract", "adjudicate", "debate", "synthesize")
 
 
 def _set_stage(fid: str, stage: str, status: str, detail: str = "") -> None:
@@ -108,7 +109,12 @@ def _run_pipeline_bg(fid: str, thesis_file: str | None) -> None:
         from .diligence import pipeline
         conn = _conn()
         t = _thesis(thesis_file)
-        res = pipeline.run_diligence(conn, fid, t, replay=False)
+        # Real inbound company: enrich with live Tavily MARKET research so the memo's
+        # Market sizing / Competition / Exit sections are externally sourced. News
+        # enrichment is intentionally OFF here — general news feeds the founder-integrity
+        # worker noisy web bios that manufacture false contradictions on real people;
+        # it needs source-quality guardrails before it's safe to auto-enable.
+        res = pipeline.run_diligence(conn, fid, t, replay=False, news=False, market=True)
         _set_stage(fid, "done", "ok",
                    f"{res['claims']} claims ({res['contested']} contested) -> "
                    f"decision: {res['recommendation'].decision}")

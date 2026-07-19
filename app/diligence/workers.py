@@ -48,13 +48,31 @@ def run_worker(evidence: str, axis: str, prefix: str, focus: str, *, replay: boo
     return llm.call("worker", system, user, WorkerOutput, replay=replay, max_tokens=2000).claims
 
 
-def extract_all(evidence: str, *, replay: bool) -> list[ClaimDraft]:
+# Workers that must NOT see market-research web pages (they'd manufacture false
+# founder contradictions / mis-attributed traction). Everyone else sees full evidence.
+_FOUNDER_SCOPED = {"founder", "traction"}
+
+
+def _has_news(evidence: str) -> bool:
+    """True if the evidence has a tavily NEWS signal (a tavily block that is not a
+    market-research page). Market research alone must not trigger the news worker."""
+    return any(block.lstrip().startswith("[tavily]") and "[market research" not in block
+               for block in evidence.split("\n\n"))
+
+
+def extract_all(evidence: str, *, replay: bool, founder_evidence: str | None = None
+                ) -> list[ClaimDraft]:
+    """founder_evidence (market-research signals removed) is fed to the integrity and
+    traction workers; the rest see full evidence. Falls back to `evidence` for both
+    when no scoped view is supplied (preserves the fixture/replay behaviour)."""
+    founder_ev = founder_evidence if founder_evidence is not None else evidence
     drafts: list[ClaimDraft] = []
     seen: set[str] = set()
     for axis, prefix, focus in WORKERS:
-        if axis == "news" and "[tavily]" not in evidence:
-            continue  # no tavily signals for this founder: skip the call entirely
-        for c in run_worker(evidence, axis, prefix, focus, replay=replay):
+        ev = founder_ev if axis in _FOUNDER_SCOPED else evidence
+        if axis == "news" and not _has_news(ev):
+            continue  # no tavily NEWS signals: skip (market research doesn't count)
+        for c in run_worker(ev, axis, prefix, focus, replay=replay):
             cid = c.id
             while cid in seen:  # guarantee unique ids across workers
                 cid += "x"

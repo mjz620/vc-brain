@@ -42,11 +42,25 @@ def load_fixture(conn, fixture: str, *, replay: bool = False) -> str:
     return founder_id
 
 
-def founder_evidence(conn, founder_id: str) -> str:
-    """All of a founder's signals as a text block for the diligence workers."""
+# Market-research signals are tagged in their content by enrich_market. They inform
+# the market/risk/competition analysis but must NOT reach the founder-integrity or
+# traction workers — a competitor web page is not evidence about the founder's history,
+# and feeding it to the integrity check manufactures false contradictions.
+_MARKET_TAG = "[market research"
+
+
+def founder_evidence(conn, founder_id: str, *, kind: str = "all") -> str:
+    """A founder's signals as a text block for the diligence workers.
+
+    kind="all"      — every signal (market/risk/news workers).
+    kind="founder"  — excludes market-research web signals (founder/traction workers),
+                      so external market pages can't pollute the integrity check.
+    """
     rows = conn.execute(
         "SELECT s.source, s.source_url, s.content FROM signals s "
         "LEFT JOIN resolutions r ON r.signal_id = s.id "
         "WHERE s.founder_id = ? OR r.founder_id = ?", (founder_id, founder_id)).fetchall()
+    if kind == "founder":
+        rows = [r for r in rows if _MARKET_TAG not in (r["content"] or "")]
     return "\n\n".join(f"[{r['source']}] source_url={r['source_url']}\n{r['content']}"
                        for r in rows)

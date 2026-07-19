@@ -6,13 +6,19 @@ SECTIONS, IN THIS ORDER (omit none except where noted):
 3. "## Company snapshot" — one paragraph: problem, urgency, product, the strongest traction fact.
 4. "## Investment hypotheses" — bullets, each a named bet with its citation; label unproven expansion logic as unproven.
 5. "## SWOT" — four bullets S/W/O/R, each evidence-backed, short.
-6. "## Problem & product" — plain-language problem, then step-by-step what the product does.
-7. "## Traction & KPIs" — every number with its citation and "claimed" where self-reported; every standard metric that is missing rendered as a gap ("Churn, CAC, sales cycle: not disclosed [flag]").
-8. Bold one-liners for "**Financials & round structure:**" and "**Cap table:**" — from claims if present, else the gap phrasing.
-9. "## Due diligence log" — "Checked:" what was verified with citations (negative-result checks included); "**Open:**" numbered open items (open-01 style ids) each with what would close it.
+6. "## Team & history" — founder background, prior roles, and the founding-to-today timeline, each item cited; note single-founder or unverified-history risk plainly. Missing background renders as a gap, not an assumption.
+7. "## Problem & product" — plain-language problem, then step-by-step what the product does.
+8. "## Technology & defensibility" — what is proprietary vs. commoditizable, any data moat, and why (or whether) the advantage compounds. If the record shows no durable moat, say so — "no defensibility evidence in the record [flag]" is a legitimate and useful finding.
+9. "## Market sizing" — TAM/SAM/SOM with each figure cited and its source visible; prefer externally-sourced (market-research / tavily) claims over the deck's own sizing, and when both exist, name the gap between them. State the key assumption behind any figure. If no external sizing was found, render "Market sizing: not derivable from materials [flag]" — never invent a number.
+10. "## Competition" — named competitor clusters from the research, how the company differs, and who could become a threat later, each cited. If competition research returned nothing, say "Competitive set: not established from available sources [flag]".
+11. "## Traction & KPIs" — every number with its citation and "claimed" where self-reported; every standard metric that is missing rendered as a gap ("Churn, CAC, sales cycle: not disclosed [flag]").
+12. Bold one-liners for "**Financials & round structure:**" and "**Cap table:**" — from claims if present (comparable rounds from research may inform round structure — cite them), else the gap phrasing.
+13. "## Due diligence log" — "Checked:" what was verified with citations (negative-result checks and external market-research checks included); "**Open:**" numbered open items (open-01 style ids) each with what would close it.
+14. "## Exit perspective" — plausible exit paths (named strategic acquirers or category comparables) drawn from the research, and why they'd pay, each cited. If no comparable is in the record, render "Exit comparables: not modelled at this stage [flag]" rather than speculating.
 
 HARD RULES:
 - Every sentence making a factual assertion cites >=1 claim id inline in the exact form [id · trust · tier], substituting the claim's ACTUAL trust (2 decimals) and corroboration tier from the ledger — e.g. [team-02 · 0.90 · corroborated]. Never the literal words "trust" or "tier"; never an id not in the ledger.
-- Gaps use ONLY the sanctioned phrasings: "not disclosed", "not applicable", "unavailable at this stage", "not derivable from materials" — NEVER an invented value, estimate, or range. A clearly marked gap is a feature of the memo, not a weakness.
-- Self-reported numbers always carry "claimed" and their low trust visibly; do not launder them into prose.
-- Length: as detailed as the decision requires, as brief as clarity allows — padding counts against you. Target 350-550 words.
+- Sections 8-10 and 14 depend on external research claims (market/risk-axis, often tavily-sourced). Use those claims where they exist; where they do not, render the sanctioned gap line for that section and move on. NEVER fill a research section with the model's own world knowledge — an uncited market figure or competitor is a fabrication, the exact failure this memo exists to prevent.
+- Gaps use ONLY the sanctioned phrasings: "not disclosed", "not applicable", "unavailable at this stage", "not derivable from materials", "not established from available sources", "not modelled at this stage" — NEVER an invented value, estimate, or range. A clearly marked gap is a feature of the memo, not a weakness.
+- Self-reported numbers always carry "claimed" and their low trust visibly; do not launder them into prose. Externally-corroborated figures may be stated with their higher trust shown.
+- Length: as detailed as the decision requires, as brief as clarity allows — padding counts against you. A section with only a gap line is one line. Target 500-850 words.

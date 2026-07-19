@@ -74,6 +74,19 @@ def news_search(query: str, *, replay: bool, max_results: int = 6) -> dict:
                         producer, replay=replay)
 
 
+def web_search(query: str, *, replay: bool, max_results: int = 6) -> dict:
+    """General web search (topic='general') — for market sizing, competitors, and
+    comparable rounds, where authoritative pages aren't news. 1 credit live."""
+    def producer():
+        _check_cap(1)
+        resp = _client().search(query, topic="general", max_results=max_results)
+        _record(1)
+        return resp
+    return cache.cached("tavily_search", {"query": query, "topic": "general",
+                                          "max_results": max_results},
+                        producer, replay=replay)
+
+
 def extract(urls: list[str], *, replay: bool) -> dict:
     """Extract page content for `urls`. 1 credit per 5 URLs live; free on cache hit."""
     urls = sorted(urls)

@@ -8,6 +8,7 @@ from ..memory import founder_score, ingest
 from ..memory.models import Signal
 from ..screening import thesis as thesis_mod
 from ..sources import tavily
+from ..sources.http import domain_of
 from . import adjudicate, critic, debate, ledger, loader, synthesizer, workers
 
 # Demo fixture founders: news enrichment must NEVER run for these ids. Their worker
@@ -86,12 +87,67 @@ def enrich_news(conn, founder_id: str, *, replay: bool) -> list[dict]:
     return found
 
 
+def _market_queries(conn, founder_id: str) -> list[str]:
+    """Company-scoped market-research queries: the niche market and the competitive
+    set. Deliberately NOT the broad thesis sector (that pulls a category-error TAM —
+    the whole AI-infra market for a niche tool) and NOT the company's own funding
+    (that leaks into the founder-integrity check and manufactures false
+    contradictions). Company-scoped queries keep the evidence about THIS market."""
+    row = conn.execute("SELECT name FROM founders WHERE id = ?", (founder_id,)).fetchone()
+    if row is None:
+        raise KeyError(f"unknown founder {founder_id}")
+    company = next((p.strip() for p in reversed(row["name"].split("/")) if p.strip()),
+                   row["name"])
+    return [f"{company} market size category",
+            f"{company} competitors alternatives comparison"]
+
+
+def enrich_market(conn, founder_id: str, *, replay: bool) -> list[dict]:
+    """Tavily market research: TAM / competitors / comparable rounds -> ingested as
+    tavily signals so the EXISTING market and risk workers extract external,
+    externally-cited market claims through the same corroboration tiering. Novel
+    founders only (fixtures are fictional — nothing to research, and determinism)."""
+    if founder_id in FIXTURE_FOUNDER_IDS:
+        raise ValueError(f"market research refused for fixture founder {founder_id} "
+                         "(fictional company; demo determinism guardrail)")
+    found: list[dict] = []
+    ranked: list[tuple[float, str]] = []
+    for q in _market_queries(conn, founder_id):
+        resp = tavily.web_search(q, replay=replay)
+        for r in resp.get("results", []):
+            if not r.get("url"):
+                continue
+            dom = domain_of(r["url"])
+            # Provenance is explicit in the signal itself: a single third-party web
+            # page is not corroboration. This keeps the market/risk workers from
+            # laundering a scraped estimate into a high-trust "corroborated" claim.
+            ingest.ingest_signal(conn, Signal(
+                source="tavily", source_url=r["url"],
+                content=f"[market research · UNVERIFIED third-party web source ({dom}) "
+                        f"· query: {q}] {r.get('title', '')} | {r.get('content', '')}",
+                observed_at=r.get("published_date"), founder_id=founder_id))
+            ranked.append((r.get("score", 0.0), r["url"]))
+            found.append({"query": q, "title": r.get("title"), "url": r["url"]})
+    top = [u for _, u in sorted(ranked, reverse=True)[:4]]
+    if top:
+        ext = tavily.extract(top, replay=replay)
+        for r in ext.get("results", []):
+            if r.get("raw_content"):
+                # Keep the market-research tag on extracted page bodies too, so the
+                # founder-scoping filter and news-worker gate both exclude them.
+                ingest.ingest_signal(conn, Signal(
+                    source="tavily", source_url=r["url"],
+                    content=f"[market research · extracted page ({domain_of(r['url'])})] "
+                            f"{r['raw_content'][:4000]}", founder_id=founder_id))
+    return found
+
+
 def run_diligence(conn, founder_id: str, thesis, *, replay: bool,
-                  news: bool = False) -> dict:
-    """news=True adds a Tavily news-enrichment stage before the workers run.
-    ONLY safe for novel founders (new inbound applies): it appends signals, which
+                  news: bool = False, market: bool = False) -> dict:
+    """news/market=True add Tavily enrichment stages before the workers run.
+    ONLY safe for novel founders (new inbound applies): they append signals, which
     changes worker evidence and llm cache keys. Fixture founders are always skipped,
-    and the default stays False so replay/rebuild paths are untouched."""
+    and the defaults stay False so replay/rebuild paths are untouched."""
     lens = thesis_mod.lens(thesis)
     if news and founder_id not in FIXTURE_FOUNDER_IDS:
         try:
@@ -99,12 +155,23 @@ def run_diligence(conn, founder_id: str, thesis, *, replay: bool,
                 enrich_news(conn, founder_id, replay=replay)
         except (RuntimeError, cache.ReplayMiss) as e:
             print(f"[news] enrichment skipped for {founder_id}: {e}")
+    if market and founder_id not in FIXTURE_FOUNDER_IDS:
+        try:
+            with instrument.stage(conn, founder_id, "market"):
+                enrich_market(conn, founder_id, replay=replay)
+        except (RuntimeError, cache.ReplayMiss) as e:
+            print(f"[market] research skipped for {founder_id}: {e}")
     evidence = loader.founder_evidence(conn, founder_id)
+    # Founder/traction workers get the market-research pages removed (see loader):
+    # a competitor page is not evidence about the founder, and feeding it to the
+    # integrity check manufactures false contradictions on real people.
+    founder_ev = loader.founder_evidence(conn, founder_id, kind="founder")
 
     # 1. Workers extract claims (grounded, non-adversarial). Drafts without a
     # resolvable evidence URL are dropped + reported, never stored or patched.
     with instrument.stage(conn, founder_id, "extract"):
-        claims, dropped_claims = ledger.assemble(workers.extract_all(evidence, replay=replay))
+        claims, dropped_claims = ledger.assemble(
+            workers.extract_all(evidence, replay=replay, founder_evidence=founder_ev))
     for d in dropped_claims:
         print(f"[ledger] dropped draft {d['id']}: {d['reason']}")
     valid_ids = {c.id for c in claims}
