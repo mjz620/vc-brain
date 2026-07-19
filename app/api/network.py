@@ -40,7 +40,8 @@ _LIVE_TO_CHANNEL = {
     "github": "Open-source community (GitHub)",
 }
 _LIVE_ONLY_HUBS = {"hn": "Hacker News", "producthunt": "Product Hunt",
-                   "launchtracker": "Launch Tracker"}
+                   "launchtracker": "Launch Tracker",
+                   "websearch": "Open Web (Tavily)"}
 
 _TIER_WEIGHT = {"decacorn": 4.0, "ipo": 3.0, "unicorn": 2.5, "acquired": 2.0}
 

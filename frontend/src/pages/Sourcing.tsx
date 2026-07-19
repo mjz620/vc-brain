@@ -3,7 +3,13 @@ import * as api from "../api";
 import type { Channel, Outreach, RunStatus, SourcedFounder, SourcingFeed } from "../api";
 import { Err, FounderPeek, InfoTip, Skeleton } from "../components";
 
-const SCAN_SOURCES = ["github", "hn", "arxiv", "producthunt", "yc"];
+/* Must stay in sync with scanner.ADAPTERS — /api/scan 422s on anything else. */
+const SCAN_SOURCES = ["github", "hn", "arxiv", "producthunt", "yc",
+                      "launchtracker", "websearch"];
+const SCAN_LABEL: Record<string, string> = {
+  launchtracker: "launchtracker (new launches)",
+  websearch: "websearch (Tavily, open web)",
+};
 
 /* Page 1 — "It finds founders before they raise."
    Outbound: ranked thesis-matched feed + channel yields + live Scan now + Activate.
@@ -191,7 +197,9 @@ function ScanNow({ thesis, onDone }: { thesis: string; onDone: () => void }) {
     <div style={{ margin: "0 0 12px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
       <select className="control" value={source} onChange={(e) => setSource(e.target.value)}
         title="source to scan live (one per call — rate-limited)">
-        {SCAN_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+        {SCAN_SOURCES.map((s) => (
+          <option key={s} value={s}>{SCAN_LABEL[s] || s}</option>
+        ))}
       </select>
       <button className={`minibtn primary${busy ? " pulse" : ""}`} onClick={go} disabled={busy}>
         {busy ? "scanning live…" : "Scan now (live)"}

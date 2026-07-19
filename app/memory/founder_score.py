@@ -18,7 +18,8 @@ from .models import ScoreEntry
 _STARS = re.compile(r"stars=(\d+)")
 _POINTS = re.compile(r"points=(\d+)")
 _VELOCITY = re.compile(r"velocity: commits_6w=(\d+) active_days=(\d+)")
-_OUTBOUND = ("github", "hn", "arxiv", "producthunt", "yc", "launchtracker")
+_OUTBOUND = ("github", "hn", "arxiv", "producthunt", "yc", "launchtracker",
+             "websearch")
 
 # dimension -> weight in the composite (renormalized over assessed dimensions)
 WEIGHTS = {"execution_velocity": 0.35, "community_pull": 0.25, "domain_breadth": 0.1,

@@ -36,12 +36,45 @@ INFRA_DOMAINS = frozenset({
     "addons.mozilla.org", "bit.ly", "t.co", "t.me", "telegram.me", "discord.gg",
     "discord.com", "producthunt.com", "news.ycombinator.com", "huggingface.co",
     "kaggle.com", "arxiv.org", "pypi.org", "npmjs.com",
+    # Media, directories and data aggregators. Open-web discovery (sources/websearch)
+    # surfaces these constantly, and one article naming five startups would otherwise
+    # hand all five the same identity key and merge them.
+    "techcrunch.com", "venturebeat.com", "forbes.com", "businessinsider.com",
+    "bloomberg.com", "reuters.com", "wsj.com", "ft.com", "cnbc.com", "wired.com",
+    "theverge.com", "axios.com", "fortune.com", "inc.com", "fastcompany.com",
+    "sifted.eu", "eu-startups.com", "tech.eu", "geekwire.com", "prnewswire.com",
+    "businesswire.com", "globenewswire.com",
+    "crunchbase.com", "pitchbook.com", "cbinsights.com", "tracxn.com", "dealroom.co",
+    "owler.com", "zoominfo.com", "glassdoor.com", "indeed.com", "wellfound.com",
+    "angel.co", "g2.com", "capterra.com", "trustpilot.com", "clutch.co",
+    "wikipedia.org", "quora.com", "stackoverflow.com", "ycombinator.com",
+    "siliconangle.com", "techmeme.com", "hackernoon.com", "towardsdatascience.com",
+    "analyticsindiamag.com", "theinformation.com", "protocol.com", "ventureradar.com",
+    "startupranking.com", "producthunt.com", "betalist.com", "f6s.com",
+    # VC firm sites. A "who is building X" search surfaces portfolio and thesis pages
+    # constantly, and a fund is not a founder — its domain must never link one.
+    "a16z.com", "sequoiacap.com", "greylock.com", "accel.com", "benchmark.com",
+    "indexventures.com", "lightspeedvp.com", "crv.com", "nea.com", "bvp.com",
+    "firstround.com", "initialized.com", "gradient.com", "khoslaventures.com",
+    "founderscollective.com", "unusual.vc", "amplifypartners.com", "bain.com",
 })
+
+
+def is_infra_domain(domain: str) -> bool:
+    """A blacklisted domain OR any subdomain of one.
+
+    Exact matching alone let every subdomain through: `username.github.io`,
+    `someone.substack.com` and `x.medium.com` are just as much shared infrastructure
+    as their parents, and each would have acted as a linking identity key — merging
+    unrelated founders who happen to publish on the same platform.
+    """
+    d = (domain or "").lower().strip(".")
+    return any(d == b or d.endswith("." + b) for b in INFRA_DOMAINS)
 
 
 def _linkable(kind: str, value: str) -> bool:
     """True for keys that may link signals to founders (non-empty, not infra)."""
-    return bool(value) and not (kind == "domain" and value.lower() in INFRA_DOMAINS)
+    return bool(value) and not (kind == "domain" and is_infra_domain(value))
 
 
 def _slug(s: str) -> str:

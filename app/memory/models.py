@@ -12,7 +12,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 Source = Literal["github", "hn", "arxiv", "producthunt", "yc", "launchtracker",
-                 "deck", "web", "tavily", "manual"]
+                 "websearch", "deck", "web", "tavily", "manual"]
 
 
 class Claim(BaseModel):
