@@ -96,11 +96,12 @@ def store_claim(conn: sqlite3.Connection, founder_id: str, claim: Claim,
         if rows and claim.evidence_title is None:
             claim.evidence_title = rows[0]["content"].split("|")[0].strip()[:120]
     conn.execute(
-        "INSERT OR REPLACE INTO claims (claim_id, founder_id, axis, text, stance, "
+        "INSERT OR REPLACE INTO claims (claim_id, founder_id, subject, axis, text, stance, "
         "evidence, evidence_url, evidence_title, evidence_excerpt, retrieved_at, "
         "source_type, corroboration, trust, observed_at, signal_ids) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (claim.id, founder_id, claim.axis, claim.text, claim.stance, claim.evidence,
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (claim.id, founder_id, claim.subject, claim.axis, claim.text, claim.stance,
+         claim.evidence,
          claim.evidence_url, claim.evidence_title, claim.evidence_excerpt,
          claim.retrieved_at, claim.source_type, claim.corroboration, claim.trust,
          claim.observed_at, json.dumps(signal_ids)),

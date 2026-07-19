@@ -24,7 +24,8 @@ def to_claim(draft: ClaimDraft) -> Claim:
     # ClaimDraft keeps the LLM-facing `source_url` field name (prompt- and
     # cache-key-stable); the ledger Claim stores it as the required evidence_url.
     # Raises ValidationError if the draft carries no resolvable URL.
-    return Claim(id=draft.id, axis=draft.axis, text=draft.text, stance=draft.stance,
+    return Claim(id=draft.id, subject=draft.subject,
+                 axis=draft.axis, text=draft.text, stance=draft.stance,
                  evidence=draft.evidence, evidence_url=draft.source_url,
                  evidence_excerpt=draft.evidence,
                  source_type=draft.source_type, corroboration=draft.corroboration,

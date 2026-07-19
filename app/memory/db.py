@@ -48,6 +48,12 @@ CREATE INDEX IF NOT EXISTS idx_signals_founder ON signals(founder_id);
 CREATE TABLE IF NOT EXISTS claims (
     claim_id      TEXT NOT NULL,                -- e.g. "team-03"
     founder_id    TEXT NOT NULL REFERENCES founders(id),
+    subject       TEXT,                         -- WHICH person the claim is about;
+                                                -- NULL = about the company, not a person.
+                                                -- founder_id is one row per COMPANY, so
+                                                -- without this a 2-founder team collapses
+                                                -- into one person and evidence gets hung
+                                                -- on the wrong co-founder.
     axis          TEXT NOT NULL,
     text          TEXT NOT NULL,
     stance        TEXT NOT NULL,
@@ -312,8 +318,33 @@ def init_db(conn) -> None:
         if _pg_initialized:
             return
         conn.executescript(PG_SCHEMA)
+        _migrate(conn)
         conn.commit()
         _pg_initialized = True
         return
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.commit()
+
+
+# Additive, idempotent column adds for databases created before the column existed.
+# CREATE TABLE IF NOT EXISTS silently skips an existing table, so a new column in the
+# schema above never reaches a DB that already has rows.
+_MIGRATIONS = [("claims", "subject", "TEXT")]
+
+
+def _migrate(conn) -> None:
+    pg = isinstance(conn, PgConnection)
+    for table, column, coltype in _MIGRATIONS:
+        if pg:
+            # Postgres supports IF NOT EXISTS here. Letting the statement fail instead
+            # would poison the surrounding transaction and take the whole init down.
+            conn.execute(
+                f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {coltype}")
+        else:
+            # SQLite has no IF NOT EXISTS for ADD COLUMN, but a failed ALTER does not
+            # invalidate the connection, so catching the duplicate is safe here.
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
+            except sqlite3.OperationalError:
+                pass

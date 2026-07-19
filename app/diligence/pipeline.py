@@ -3,8 +3,11 @@ decision-layer debate -> synthesizer -> critic -> stored memo (spec §2.4)."""
 import os
 from datetime import datetime, timezone
 
-from .. import cache, instrument
+from pydantic import BaseModel
+
+from .. import cache, instrument, llm
 from ..memory import founder_score, ingest
+from ..promptlib import load_prompt
 from ..memory.models import Signal
 from ..screening import thesis as thesis_mod
 from ..sources import tavily
@@ -87,19 +90,65 @@ def enrich_news(conn, founder_id: str, *, replay: bool) -> list[dict]:
     return found
 
 
-def _market_queries(conn, founder_id: str) -> list[str]:
-    """Company-scoped market-research queries: the niche market and the competitive
-    set. Deliberately NOT the broad thesis sector (that pulls a category-error TAM —
-    the whole AI-infra market for a niche tool) and NOT the company's own funding
-    (that leaks into the founder-integrity check and manufactures false
-    contradictions). Company-scoped queries keep the evidence about THIS market."""
+class _Category(BaseModel):
+    category: str
+
+
+_CATEGORY_DEFAULT = (
+    "Name the product category this company sells into, as an industry analyst would "
+    "label it for market sizing. Use the standard category name people publish TAM "
+    "figures for (e.g. 'IT service management (ITSM) software', 'observability', "
+    "'contract lifecycle management'), NOT the company name and NOT a broad sector "
+    "like 'AI' or 'SaaS'. Reply with the category alone, no punctuation or preamble.")
+
+
+def _category_of(conn, founder_id: str, company: str, *, replay: bool) -> str | None:
+    """The category an analyst would size — derived from what the company actually
+    sells, never from the fund thesis. This is the distinction that keeps sizing
+    honest: 'ITSM software' is THIS company's market; 'AI infra' is the thesis's.
+
+    Returns None if there is nothing to derive it from, in which case sizing is
+    skipped and the market worker's 'not derivable' claim stands truthfully.
+    """
+    row = conn.execute(
+        "SELECT content FROM signals WHERE founder_id = ? AND source = 'deck' LIMIT 1",
+        (founder_id,)).fetchone()
+    if row is None or not (row["content"] or "").strip():
+        return None
+    out = llm.call(
+        "worker", load_prompt("market_category", _CATEGORY_DEFAULT),
+        f"Company: {company}\n\n{row['content'][:2000]}", _Category,
+        replay=replay, max_tokens=60)
+    cat = " ".join((out.category or "").split()).strip(" .\"'")
+    return cat or None
+
+
+def _market_queries(conn, founder_id: str, *, replay: bool) -> list[str]:
+    """Company-scoped queries (the niche market and the competitive set) PLUS
+    category-scoped sizing queries.
+
+    Still deliberately NOT the broad thesis sector — that is the category error the
+    company-scoped queries were guarding against, and it stays guarded because the
+    category is derived from the company's own deck, not from the thesis. And still
+    never the company's own funding, which would leak into the founder-integrity
+    check and manufacture false contradictions.
+
+    The company-scoped sizing query alone returns nothing for an unknown two-person
+    startup, which is why sizing previously came back 'not derivable' — the worker
+    was right, it simply had no evidence to work from.
+    """
     row = conn.execute("SELECT name FROM founders WHERE id = ?", (founder_id,)).fetchone()
     if row is None:
         raise KeyError(f"unknown founder {founder_id}")
     company = next((p.strip() for p in reversed(row["name"].split("/")) if p.strip()),
                    row["name"])
-    return [f"{company} market size category",
-            f"{company} competitors alternatives comparison"]
+    queries = [f"{company} market size category",
+               f"{company} competitors alternatives comparison"]
+    cat = _category_of(conn, founder_id, company, replay=replay)
+    if cat:
+        queries += [f"{cat} market size TAM forecast",
+                    f"{cat} market growth rate vendors market share"]
+    return queries
 
 
 def enrich_market(conn, founder_id: str, *, replay: bool) -> list[dict]:
@@ -112,7 +161,7 @@ def enrich_market(conn, founder_id: str, *, replay: bool) -> list[dict]:
                          "(fictional company; demo determinism guardrail)")
     found: list[dict] = []
     ranked: list[tuple[float, str]] = []
-    for q in _market_queries(conn, founder_id):
+    for q in _market_queries(conn, founder_id, replay=replay):
         resp = tavily.web_search(q, replay=replay)
         for r in resp.get("results", []):
             if not r.get("url"):

@@ -1,13 +1,26 @@
 """Structured-output schemas for the diligence pipeline (provider-agnostic parse)."""
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ClaimDraft(BaseModel):
     """A worker-extracted claim. Trust is NOT set here — it's derived by the ledger
     (rubric) or the adjudication Judge (contested). corroboration is the worker's read."""
     id: str
+    # The attribution instruction lives HERE, in the schema, not in prompts/ — those
+    # files are human-owned. A company has one founder_id but may have several people,
+    # so without an explicit subject the extractor hangs one co-founder's evidence on
+    # another and the adjudicator then correctly reports a contradiction that the
+    # pipeline itself manufactured.
+    subject: str | None = Field(
+        default=None,
+        description=(
+            "The exact full name of the person this claim is about, copied from the "
+            "evidence. Use null ONLY when the claim is about the company rather than a "
+            "specific person. When the evidence names several founders, attribute each "
+            "claim to the one the evidence actually supports — never merge two people, "
+            "and never attach one person's GitHub, education, or employment to another."))
     axis: Literal["founder", "market", "idea", "traction", "risk"]
     text: str
     stance: Literal["supports", "contradicts", "neutral"]

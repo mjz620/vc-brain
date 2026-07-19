@@ -11,8 +11,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-Source = Literal["github", "hn", "arxiv", "producthunt", "yc", "deck", "web",
-                 "tavily", "manual"]
+Source = Literal["github", "hn", "arxiv", "producthunt", "yc", "launchtracker",
+                 "deck", "web", "tavily", "manual"]
 
 
 class Claim(BaseModel):
@@ -26,6 +26,7 @@ class Claim(BaseModel):
     """
 
     id: str  # e.g. "team-03"
+    subject: str | None = None  # which person this is about; None = the company
     axis: Literal["founder", "market", "idea", "traction", "risk"]
     text: str
     stance: Literal["supports", "contradicts", "neutral"]

@@ -6,10 +6,11 @@ sink the scan; its error is reported in the per-source counts instead.
 """
 from ..memory import resolve
 from ..screening import thesis as thesis_mod
-from . import arxiv, github, hn, producthunt, yc
+from . import arxiv, github, hn, launchtracker, producthunt, yc
 
 ADAPTERS = [("github", github.scan), ("hn", hn.scan), ("arxiv", arxiv.scan),
-            ("producthunt", producthunt.scan), ("yc", yc.scan)]
+            ("producthunt", producthunt.scan), ("yc", yc.scan),
+            ("launchtracker", launchtracker.scan)]
 
 
 def run_scan(conn, topics: list[str], *, replay: bool, limit_per: int = 8,
