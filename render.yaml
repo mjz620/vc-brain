@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: vc-brain
+    runtime: python
+    plan: free
+    buildCommand: pip install .
+    startCommand: uvicorn app.server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: DATABASE_URL
+        sync: false # Supabase pooled connection string (port 6543) — set in dashboard
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: VC_MAX_ADJUDICATIONS
+        value: "6"
