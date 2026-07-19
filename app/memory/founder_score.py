@@ -10,6 +10,7 @@ averages nothing from it.
 import json
 import math
 import re
+from types import SimpleNamespace
 
 from . import ingest
 from .models import ScoreEntry
@@ -104,6 +105,49 @@ def compute(conn, founder_id: str) -> dict:
     dims = dimensions(_signals(conn, founder_id), claims)
     return {"dimensions": dims, "coverage": coverage_of(claims),
             "score": composite(dims)}
+
+
+def compute_batch(conn, founder_ids: list[str]) -> dict[str, dict]:
+    """compute() for many founders in a fixed 2 queries instead of N+1.
+
+    Identical arithmetic to compute() — it feeds the SAME pure dimensions()/
+    coverage_of()/composite() functions, just with batch-loaded evidence. This is a
+    read-path latency fix (remote Postgres makes every round-trip expensive), not a
+    scoring change.
+    """
+    if not founder_ids:
+        return {}
+    ids = list(dict.fromkeys(founder_ids))
+    marks = ",".join("?" * len(ids))
+
+    # All claims for these founders, one query. Only the fields the pure scorers read.
+    claims_by: dict[str, list] = {fid: [] for fid in ids}
+    for r in conn.execute(
+            f"SELECT founder_id, axis, text, corroboration FROM claims "
+            f"WHERE founder_id IN ({marks})", ids).fetchall():
+        claims_by[r["founder_id"]].append(SimpleNamespace(
+            axis=r["axis"], text=r["text"], corroboration=r["corroboration"]))
+
+    # All signals for these founders, one query. A signal counts for a founder if it
+    # resolves to them OR is directly owned by them (matches _signals()'s OR clause).
+    sigs_by: dict[str, list] = {fid: [] for fid in ids}
+    idset = set(ids)
+    for r in conn.execute(
+            f"SELECT s.source, s.content, r.founder_id rfid, s.founder_id sfid "
+            f"FROM signals s LEFT JOIN resolutions r ON r.signal_id = s.id "
+            f"WHERE r.founder_id IN ({marks}) OR s.founder_id IN ({marks})",
+            ids + ids).fetchall():
+        sig = {"source": r["source"], "content": r["content"]}
+        for fid in {r["rfid"], r["sfid"]} & idset:
+            sigs_by[fid].append(sig)
+
+    out = {}
+    for fid in ids:
+        claims = claims_by[fid]
+        dims = dimensions(sigs_by[fid], claims)
+        out[fid] = {"dimensions": dims, "coverage": coverage_of(claims),
+                    "score": composite(dims)}
+    return out
 
 
 def recompute(conn, founder_id: str, trigger: str, *, now: str) -> dict:

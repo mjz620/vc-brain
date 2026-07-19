@@ -177,24 +177,41 @@ def founders(thesis: str | None = None):
     t = _thesis(thesis)
     ids = [r["fid"] for r in conn.execute(
         "SELECT DISTINCT founder_id fid FROM axis_scores").fetchall()]
+    if not ids:
+        return []
+    marks = ",".join("?" * len(ids))
+    # Batch every per-founder lookup into set-based queries: on remote Postgres each
+    # round-trip is ~30-60ms, so the old per-founder loop was seconds of pure latency.
+    names = {r["id"]: r["name"] for r in conn.execute(
+        f"SELECT id, name, founder_score FROM founders WHERE id IN ({marks})", ids)}
+    histories = {r["id"]: json.loads(r["founder_score"] or "{}").get("history", [])
+                 for r in conn.execute(
+                     f"SELECT id, founder_score FROM founders WHERE id IN ({marks})", ids)}
+    memos = {r["fid"] for r in conn.execute(
+        f"SELECT DISTINCT founder_id fid FROM memos WHERE founder_id IN ({marks})", ids)}
+    lat_tot = {r["fid"]: r["tot"] for r in conn.execute(
+        f"SELECT founder_id fid, SUM(seconds) tot FROM latency "
+        f"WHERE founder_id IN ({marks}) GROUP BY founder_id", ids)}
+    src = {}
+    for r in conn.execute(
+            f"SELECT COALESCE(r.founder_id, s.founder_id) fid, s.source FROM signals s "
+            f"LEFT JOIN resolutions r ON r.signal_id=s.id "
+            f"WHERE r.founder_id IN ({marks}) OR s.founder_id IN ({marks})", ids + ids):
+        if r["fid"] and (r["fid"] not in src or r["source"] < src[r["fid"]]):
+            src[r["fid"]] = r["source"]  # alphabetically-first source, as before
+    axes_by = dec.per_axis_batch(conn, ids, t.name)  # thesis lens actually applied
+    scores = founder_score.compute_batch(conn, ids)
     out = []
     for fid in ids:
-        name = conn.execute("SELECT name FROM founders WHERE id=?", (fid,)).fetchone()
-        axes = dec.per_axis(conn, fid, t.name)  # thesis lens actually applied
-        has_memo = conn.execute("SELECT 1 FROM memos WHERE founder_id=? LIMIT 1",
-                                (fid,)).fetchone() is not None
-        lat = instrument.latency_strip(conn, fid)
         # Signal / Coverage split (spec §3): Signal = persistent Founder Score
         # (evidence-derived, deterministic); Coverage = fraction of the record's
         # informational areas with >=1 claim. NOT derived from the 3 axes.
-        cur = founder_score.compute(conn, fid)
-        st = founder_score.stored(conn, fid)
-        out.append({"id": fid, "name": name["name"] if name else fid,
-                    "source": _source_of(conn, fid), "axes": axes,
+        cur, hist = scores[fid], histories.get(fid) or []
+        out.append({"id": fid, "name": names.get(fid, fid),
+                    "source": src.get(fid, "unknown"), "axes": axes_by[fid],
                     "signal": cur["score"], "coverage": cur["coverage"],
-                    "score_history_points": len(st["history"]) if st else 0,
-                    "score_history": st["history"] if st else [],
-                    "has_memo": has_memo, "latency_total": lat["total_seconds"]})
+                    "score_history_points": len(hist), "score_history": hist,
+                    "has_memo": fid in memos, "latency_total": lat_tot.get(fid) or 0})
     # rank by Founder Score desc (unblended axes stay separate in the payload)
     out.sort(key=lambda f: f["signal"] or 0, reverse=True)
     return out
@@ -219,27 +236,30 @@ def sourcing(thesis: str | None = None):
     discarded' rendered as a feature."""
     conn = _conn()
     t = _thesis(thesis)
+    # Founder name/keys folded into the aggregate (1:1 with founder_id, so listing them
+    # in GROUP BY is engine-portable) — removes one per-founder lookup from the loop.
     rows = conn.execute(
-        "SELECT r.founder_id fid, COUNT(*) n, GROUP_CONCAT(DISTINCT s.source) sources, "
+        "SELECT r.founder_id fid, f.name name, f.entity_keys entity_keys, "
+        "COUNT(*) n, GROUP_CONCAT(DISTINCT s.source) sources, "
         "MAX(COALESCE(s.observed_at, s.ingested_at)) latest, "
         "GROUP_CONCAT(s.content, '\n') blob "
         "FROM resolutions r JOIN signals s ON s.id = r.signal_id "
-        "GROUP BY r.founder_id").fetchall()
+        "JOIN founders f ON f.id = r.founder_id "
+        "GROUP BY r.founder_id, f.name, f.entity_keys").fetchall()
     screened = {r["fid"] for r in conn.execute(
         "SELECT DISTINCT founder_id fid FROM axis_scores").fetchall()}
     outreach = {r["fid"] for r in conn.execute(
         "SELECT DISTINCT founder_id fid FROM outreach").fetchall()}
+    scores = founder_score.compute_batch(conn, [r["fid"] for r in rows])
     out = []
     for r in rows:
-        f = conn.execute("SELECT name, entity_keys FROM founders WHERE id=?",
-                         (r["fid"],)).fetchone()
         blob = (r["blob"] or "").lower()
         topic_match = sum(1 for tp in t.topics if tp.lower() in blob)
-        cur = founder_score.compute(conn, r["fid"])
-        out.append({"id": r["fid"], "name": f["name"] if f else r["fid"],
+        cur = scores[r["fid"]]
+        out.append({"id": r["fid"], "name": r["name"] or r["fid"],
                     "signal": cur["score"], "coverage": cur["coverage"],
                     "dimensions": cur["dimensions"],
-                    "entity_keys": json.loads(f["entity_keys"]) if f else {},
+                    "entity_keys": json.loads(r["entity_keys"]) if r["entity_keys"] else {},
                     "sources": (r["sources"] or "").split(","),
                     "signal_count": r["n"], "latest_signal_at": r["latest"],
                     "thesis_topic_match": topic_match,

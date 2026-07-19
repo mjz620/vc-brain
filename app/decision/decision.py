@@ -64,6 +64,47 @@ def per_axis(conn, founder_id: str, thesis_name: str | None = None) -> list[dict
     return out
 
 
+def per_axis_batch(conn, founder_ids: list[str],
+                   thesis_name: str | None = None) -> dict[str, list[dict]]:
+    """per_axis() for many founders in 1 query instead of N+1. Same output shape and
+    same semantics: displayed score is the latest UNDER the thesis lens; trend is the
+    last two scores regardless of thesis (matching axes_mod.trend). Read-path fix."""
+    if not founder_ids:
+        return {}
+    ids = list(dict.fromkeys(founder_ids))
+    marks = ",".join("?" * len(ids))
+    # All axis rows for these founders, newest first — pick latest/prior in Python.
+    rows = conn.execute(
+        f"SELECT founder_id, axis, score, stance, coverage, thesis, scored_at "
+        f"FROM axis_scores WHERE founder_id IN ({marks}) "
+        f"ORDER BY scored_at DESC", ids).fetchall()
+    grouped: dict[tuple, list] = {}
+    for r in rows:
+        grouped.setdefault((r["founder_id"], r["axis"]), []).append(r)
+
+    out: dict[str, list[dict]] = {}
+    for fid in ids:
+        axes_out = []
+        for axis in axes_mod.AXES:
+            g = grouped.get((fid, axis), [])
+            latest = next((r for r in g if not thesis_name or r["thesis"] == thesis_name),
+                          None)
+            if latest is None:
+                axes_out.append({"axis": axis, "status": "not yet screened"})
+                continue
+            # trend ignores the thesis filter, exactly like axes_mod.trend.
+            if len(g) < 2:
+                tr = "new"
+            else:
+                d = g[0]["score"] - g[1]["score"]
+                tr = "improving" if d > 0.3 else "declining" if d < -0.3 else "stable"
+            axes_out.append({"axis": axis, "score": latest["score"],
+                             "stance": latest["stance"], "coverage": latest["coverage"],
+                             "trend": tr})
+        out[fid] = axes_out
+    return out
+
+
 def build(conn, founder_id: str, thesis) -> dict:
     memo = conn.execute("SELECT decision, recommendation, memo_md FROM memos WHERE "
                         "founder_id=? AND thesis=?", (founder_id, thesis.name)).fetchone()

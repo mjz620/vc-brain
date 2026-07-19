@@ -281,8 +281,10 @@ def _get_pool():
                 c.prepare_threshold = None
 
             _pool = ConnectionPool(
-                os.environ["DATABASE_URL"], min_size=0, max_size=5,
+                os.environ["DATABASE_URL"], min_size=1, max_size=5,
                 timeout=10,  # fail fast when Postgres is unreachable
+                # keep 1 connection warm so most requests skip the TLS handshake to
+                # the (cross-region) Supabase pooler
                 configure=_configure, open=True)
         return _pool
 
