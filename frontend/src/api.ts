@@ -184,6 +184,8 @@ export interface QueryResult {
   error?: string; // parse failure — explained, nothing guessed
   criteria: { text: string; kind: string; value: string }[];
   ignored_criteria: { text: string; reason: string }[];
+  coverage: { criterion: string; evaluated_founders: number;
+              candidate_founders: number }[];
   results: {
     id: string;
     name: string;

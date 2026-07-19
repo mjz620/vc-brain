@@ -5,6 +5,7 @@ Honesty rule: a criterion Memory cannot evaluate (e.g. "no prior VC backing" whe
 funding-history source is ingested) is returned as not_evaluable and IGNORED in the
 filter — flagged to the user, never silently guessed.
 """
+import re
 from typing import Literal
 
 from pydantic import BaseModel
@@ -23,16 +24,48 @@ _DEFAULT = (
     "('top-tier accelerator' -> source yc; 'published research' -> arxiv; "
     "'technical founder' -> source github)\n"
     "- score: a minimum Founder Score 0-10, value like '7' ('strong signal' -> 7)\n"
-    "Anything Memory cannot evaluate (geography, prior VC backing, headcount, "
+    "- location: a city, country or region ('in Berlin' -> 'berlin'; 'European "
+    "founders' -> 'europe'). Value is the place name alone, lowercased.\n"
+    "- team_size: headcount with a comparator, value like '<10', '>50' or '5' "
+    "('small team' -> '<10'; 'under 20 people' -> '<20')\n"
+    "Anything Memory cannot evaluate (prior VC backing, funding history, "
     "demographics) MUST be kind=not_evaluable with the reason in value — do NOT force "
     "it into a keyword. Split the query exhaustively; every fragment lands in exactly "
     "one criterion.")
 
+# Both are written into yc signal content by app/sources/yc.py. They are the only
+# structured geography and headcount this system ingests; a founder whose signals
+# carry neither is reported as uncovered, never assumed to match or not match.
+_LOC = re.compile(r"(?:loc|regions)=([^|]*)")
+_TEAM = re.compile(r"team_size=(\d+)")
+
 
 class Criterion(BaseModel):
     text: str  # the query fragment, verbatim
-    kind: Literal["keyword", "source", "score", "not_evaluable"]
+    kind: Literal["keyword", "source", "score", "location", "team_size",
+                  "not_evaluable"]
     value: str
+
+
+def _team_ok(blob: str, spec: str) -> bool | None:
+    """None = this founder carries no headcount data, so the criterion cannot be
+    applied to them. Callers must treat None as uncovered, not as a failed match."""
+    sizes = [int(m) for m in _TEAM.findall(blob)]
+    if not sizes:
+        return None
+    n, spec = max(sizes), spec.strip()
+    op, num = (spec[0], spec[1:]) if spec[:1] in "<>" else ("=", spec)
+    if not num.strip().isdigit():
+        return None
+    num = int(num)
+    return n < num if op == "<" else n > num if op == ">" else n == num
+
+
+def _loc_ok(blob: str, place: str) -> bool | None:
+    found = " ".join(_LOC.findall(blob)).lower()
+    if not found or "unknown" in found and found.replace("unknown", "").strip() == "":
+        return None
+    return place.lower().strip() in found
 
 
 class ParsedQuery(BaseModel):
@@ -50,7 +83,14 @@ def run(conn, q: str, *, replay: bool, limit: int = 15) -> dict:
     sources = {c.value.lower() for c in parsed.criteria if c.kind == "source"}
     min_scores = [float(c.value) for c in parsed.criteria
                   if c.kind == "score" and c.value.replace(".", "").isdigit()]
+    locations = [c.value for c in parsed.criteria if c.kind == "location"]
+    team_specs = [c.value for c in parsed.criteria if c.kind == "team_size"]
     ignored = [c for c in parsed.criteria if c.kind == "not_evaluable"]
+    # Per-criterion coverage: how many founders carried the data to be judged at all.
+    # This is what turns "ignored" into "evaluated over a disclosed population".
+    cover: dict[str, dict] = {}
+    for text in locations + team_specs:
+        cover[text] = {"covered": 0, "total": 0}
 
     rows = conn.execute(
         "SELECT r.founder_id fid, GROUP_CONCAT(DISTINCT s.source) sources, "
@@ -66,6 +106,30 @@ def run(conn, q: str, *, replay: bool, limit: int = 15) -> dict:
             continue
         if keywords and not kw_hits:
             continue
+        # Geography and headcount: a founder we cannot judge is dropped and counted
+        # as uncovered — never silently passed through as if they had matched.
+        uncovered = False
+        for place in locations:
+            cover[place]["total"] += 1
+            ok = _loc_ok(blob, place)
+            if ok is None:
+                uncovered = True
+            else:
+                cover[place]["covered"] += 1
+                if not ok:
+                    uncovered = True
+        for spec in team_specs:
+            cover[spec]["total"] += 1
+            ok = _team_ok(blob, spec)
+            if ok is None:
+                uncovered = True
+            else:
+                cover[spec]["covered"] += 1
+                if not ok:
+                    uncovered = True
+        if uncovered:
+            continue
+
         cur = founder_score.compute(conn, r["fid"])
         if min_scores and (cur["score"] is None or cur["score"] < max(min_scores)):
             continue
@@ -81,5 +145,9 @@ def run(conn, q: str, *, replay: bool, limit: int = 15) -> dict:
         "criteria": [c.model_dump() for c in parsed.criteria],
         "ignored_criteria": [
             {"text": c.text, "reason": c.value} for c in ignored],
+        # Evaluated, but only over the founders who carried the data. An empty result
+        # with covered=38/101 is a real answer; it is not the same as "ignored".
+        "coverage": [{"criterion": k, "evaluated_founders": v["covered"],
+                      "candidate_founders": v["total"]} for k, v in cover.items()],
         "results": results[:limit],
     }

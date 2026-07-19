@@ -214,6 +214,17 @@ function QueryBox({ openFounder }: { openFounder: (id: string) => void }) {
               {res.ignored_criteria.map((c) => `"${c.text}" — ${c.reason}`).join("; ")}
             </p>
           )}
+          {/* Coverage is the difference between "nobody matched" and "we couldn't
+              check" — state it explicitly rather than letting an empty table imply
+              the criterion was applied to everyone. */}
+          {res.coverage?.length > 0 && (
+            <p className="muted" style={{ fontSize: 12 }}>
+              evaluated over founders carrying the data:{" "}
+              {res.coverage.map((c) =>
+                `"${c.criterion}" — ${c.evaluated_founders}/${c.candidate_founders}`
+              ).join("; ")}
+            </p>
+          )}
           {res.results.length === 0 && (
             <p className="empty">No founders in Memory match every evaluable criterion —
               loosen the query or scan more sources.</p>
