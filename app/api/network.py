@@ -20,7 +20,7 @@ from collections import Counter
 from fastapi import APIRouter
 
 from .. import config
-from ..memory import db
+from ..memory import db, founder_score
 
 router = APIRouter(prefix="/api")
 
@@ -32,7 +32,43 @@ _CHANNEL_TO_LIVE = {
     "Open-source community (GitHub)": "github",
 }
 
+# Live scan source -> the reference channel node its founders attach to. Sources
+# with no historical reference (hn, producthunt) get their own live-only hub below.
+_LIVE_TO_CHANNEL = {
+    "yc": "Y Combinator",
+    "arxiv": "Research paper (arXiv)",
+    "github": "Open-source community (GitHub)",
+}
+_LIVE_ONLY_HUBS = {"hn": "Hacker News", "producthunt": "Product Hunt"}
+
 _TIER_WEIGHT = {"decacorn": 4.0, "ipo": 3.0, "unicorn": 2.5, "acquired": 2.0}
+
+
+def _live_founders(conn) -> list[dict]:
+    """This pipeline's own sourced founders + the channel each came in through.
+
+    A founder's channel is their most-frequent signal source. Node size comes from
+    the canonical Signal score (founder_score.compute_batch) — the same metric shown
+    everywhere else — so a founder we scored high shows up bigger. This is the LIVE
+    layer overlaid on the historical reference: who WE are sourcing, right now."""
+    rows = conn.execute(
+        "SELECT f.id id, f.name name, s.source source, COUNT(*) c "
+        "FROM founders f JOIN resolutions r ON r.founder_id = f.id "
+        "JOIN signals s ON s.id = r.signal_id "
+        "GROUP BY f.id, s.source").fetchall()
+    top: dict[str, tuple[str, str, int]] = {}
+    for r in rows:
+        cur = top.get(r["id"])
+        if cur is None or r["c"] > cur[2]:
+            top[r["id"]] = (r["name"], r["source"], r["c"])
+    if not top:
+        return []
+    scores = founder_score.compute_batch(conn, list(top))
+    out = []
+    for fid, (name, source, _) in top.items():
+        out.append({"id": fid, "name": name, "source": source,
+                    "score": (scores.get(fid) or {}).get("score")})
+    return out
 
 
 def _load_reference() -> dict:
@@ -89,6 +125,27 @@ def network():
             links.append({"source": f"st:{s['name']}", "target": f"inv:{inv}",
                           "kind": "seed"})
 
+    # --- LIVE overlay: this pipeline's own founders, wired to their channel ---
+    live_founders = _live_founders(conn)
+    ref_channel_ids = {f"ch:{ch}" for ch in ref["channels"]}
+    live_hub_counts = Counter(f["source"] for f in live_founders
+                              if f["source"] in _LIVE_ONLY_HUBS)
+    for src, label in _LIVE_ONLY_HUBS.items():
+        if live_hub_counts.get(src):
+            nodes.append({"id": f"ch:{label}", "type": "channel", "label": label,
+                          "size": live_hub_counts[src], "cluster": label,
+                          "covered_live": True, "live_only": True})
+    for f in live_founders:
+        ch = _LIVE_TO_CHANNEL.get(f["source"]) or _LIVE_ONLY_HUBS.get(f["source"])
+        target = f"ch:{ch}" if ch else None
+        if not target or (target not in ref_channel_ids and f["source"] not in _LIVE_ONLY_HUBS):
+            continue  # source with no channel to attach to — skip rather than orphan
+        nodes.append({"id": f"fr:{f['id']}", "type": "founder", "label": f["name"],
+                      "size": f["score"] if f["score"] is not None else 0.0,
+                      "cluster": ch, "signal": f["score"], "source": f["source"]})
+        links.append({"source": f"fr:{f['id']}", "target": target, "kind": "live"})
+    live_founder_n = sum(1 for n in nodes if n["type"] == "founder")
+
     # --- channel intelligence: history + this instance's live yield ---
     channel_intel = []
     for ch, desc in ref["channels"].items():
@@ -120,5 +177,6 @@ def network():
         "underexplored_channels": underexplored,
         "live_channels": live,
         "counts": {"startups": len(startups), "channels": len(ref["channels"]),
-                   "investors": len(investor_counts), "edges": len(links)},
+                   "investors": len(investor_counts), "edges": len(links),
+                   "live_founders": live_founder_n},
     }

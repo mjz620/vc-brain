@@ -101,13 +101,15 @@ function GraphPanel({ n }: { n: Network }) {
       <ForceGraph data={n} onHover={setHovered} />
       <div className="net-legend">
         <span className="net-lg net-lg-ch">sourcing channel</span>
-        <span className="net-lg net-lg-st">startup</span>
+        <span className="net-lg net-lg-st">notable outcome</span>
         <span className="net-lg net-lg-inv">seed investor</span>
+        <span className="net-lg net-lg-fr">our live pipeline</span>
         <span className="net-cap">
           {hovered ? <b>{hovered}</b> : (
             <>drag a node to throw it · hover to trace connections · node size = influence
-              ({n.counts.startups} startups · {n.counts.channels} channels ·
-              {" "}{n.counts.investors} investors)</>
+              ({n.counts.startups} outcomes · {n.counts.channels} channels ·
+              {" "}{n.counts.investors} investors ·
+              {" "}<b>{n.counts.live_founders} live founders we're sourcing now</b>)</>
           )}
         </span>
       </div>
