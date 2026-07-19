@@ -711,6 +711,13 @@ details.provwrap summary:hover { color: var(--fg); }
 .fg-founder circle { fill: var(--accent); fill-opacity: 0.8; stroke: var(--panel); stroke-width: 0.8; }
 .fg-founder text { fill: var(--accent); font-size: 9px; }
 .fg-node:hover circle { stroke: var(--accent); stroke-width: 2; }
+/* Halo brightness encodes the median Signal of the founders a channel produced
+   (see the API's glow_encodes). A node with no data carries no halo at all rather
+   than a faint one — unlit reads as "not measured", dim would read as "measured
+   and poor". Two-class specificity to beat the per-type `circle` fills above. */
+.fg-node .fg-halo { fill: var(--accent); stroke: none; pointer-events: none; }
+.fg-node:hover .fg-halo { stroke: none; }
+.fg-startup .fg-halo, .fg-investor .fg-halo { fill: var(--muted); }
 .net-legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
   margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line);
   font-size: 11px; color: var(--muted); }

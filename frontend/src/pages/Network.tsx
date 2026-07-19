@@ -39,7 +39,7 @@ export default function NetworkPage() {
                 <table className="funnel">
                   <thead>
                     <tr><th>Sourcing channel</th><th>Notable outcomes</th>
-                      <th>This pipeline (live)</th></tr>
+                      <th>This pipeline (live)</th><th>Our decisions</th></tr>
                   </thead>
                   <tbody>
                     {n.channel_intelligence.map((c) => (
@@ -60,6 +60,29 @@ export default function NetworkPage() {
                           ) : (
                             <span className="net-gap">no live scanner ⚠</span>
                           )}
+                        </td>
+                        {/* The outcome loop: this fund's own realised decisions joined
+                            back to the channel that sourced the founder. Reported as
+                            counts because the denominator is still small — a channel
+                            with no decisions says so rather than showing a rate. */}
+                        <td>
+                          {c.outcomes ? (
+                            <span className="net-live">
+                              {c.outcomes.decided > 0 ? (
+                                <>
+                                  <b className="net-num">{c.outcomes.invested}</b> invest
+                                  {" · "}{c.outcomes.conditional} cond
+                                  {" · "}{c.outcomes.passed} pass
+                                </>
+                              ) : (
+                                <span className="net-gap">no decisions yet</span>
+                              )}
+                              <div className="net-notable">
+                                {c.outcomes.screen_killed} killed at screen ·
+                                {" "}median Signal {c.outcomes.median_signal ?? "—"}
+                              </div>
+                            </span>
+                          ) : <span className="net-gap">—</span>}
                         </td>
                       </tr>
                     ))}
@@ -107,6 +130,8 @@ function GraphPanel({ n }: { n: Network }) {
         <span className="net-cap">
           {hovered ? <b>{hovered}</b> : (
             <>drag a node to throw it · hover to trace connections · node size = influence
+              {" "}· <b>glow = median Signal of the founders that channel produced</b>
+              {" "}(unlit = not measured, not weak)
               ({n.counts.startups} outcomes · {n.counts.channels} channels ·
               {" "}{n.counts.investors} investors ·
               {" "}<b>{n.counts.live_founders} live founders we're sourcing now</b>)</>

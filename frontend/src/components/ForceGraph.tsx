@@ -188,6 +188,13 @@ export default function ForceGraph({ data, onHover }: {
     <svg ref={svgRef} className="fg" viewBox={`0 0 ${W} ${H}`}
       onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}
       role="img" aria-label="interactive sourcing network — drag nodes; full data in the tables below">
+      <defs>
+        {/* One shared blur — a per-node drop-shadow filter would re-rasterise on
+            every simulation tick and drop the frame rate on a graph this size. */}
+        <filter id="fg-glow" x="-150%" y="-150%" width="400%" height="400%">
+          <feGaussianBlur stdDeviation="5" />
+        </filter>
+      </defs>
       {data.links.map((l, i) => (
         <line key={i} ref={(el) => { lEls.current[i] = el; }}
           className={`fg-edge fg-e-${l.kind}${
@@ -208,6 +215,10 @@ export default function ForceGraph({ data, onHover }: {
             }}
             onPointerEnter={() => setH(nn.id)} onPointerLeave={() => setH(null)}>
             <title>{titleFor(nn)}</title>
+            {nn.glow != null && nn.glow > 0 && (
+              <circle className="fg-halo" r={r * 1.9} filter="url(#fg-glow)"
+                style={{ opacity: 0.18 + nn.glow * 0.55 }} />
+            )}
             <circle r={r} />
             {showLabel && <text y={r + 10} textAnchor="middle">{nn.label}</text>}
           </g>

@@ -232,6 +232,7 @@ export interface ChannelIntel {
   notable: string[]; live_source: string | null;
   live: { signals: number; resolved: number; founders: number; resolve_rate: number } | null;
   covered_live: boolean;
+  outcomes?: ChannelOutcome | null;
 }
 export interface NetNode {
   id: string; type: "channel" | "startup" | "investor" | "founder"; label: string;
@@ -240,6 +241,14 @@ export interface NetNode {
   sector?: string; outcome?: string; tier?: string;  // startup
   backed?: string[];              // investor
   signal?: number | null; source?: string;        // founder (live)
+  /* 0-1, drives halo intensity. null = no data for this node, rendered unlit
+     rather than dim — absence of evidence is not a low score. */
+  glow?: number | null;
+}
+export interface ChannelOutcome {
+  founders: number; median_signal: number | null; glow: number | null;
+  screen_killed: number; decided: number; invested: number; passed: number;
+  conditional: number; decision_yield: number | null;
 }
 export interface NetLink { source: string; target: string; kind: "sourced" | "seed" | "live"; }
 export interface Network {
@@ -252,6 +261,8 @@ export interface Network {
   top_investors: { name: string; count: number; startups: string[] }[];
   underexplored_channels: string[];
   live_channels: Record<string, { signals: number; resolved: number; founders: number; resolve_rate: number }>;
+  channel_outcomes: Record<string, ChannelOutcome>;
+  glow_encodes: string;
   counts: { startups: number; channels: number; investors: number; edges: number;
     live_founders: number };
 }

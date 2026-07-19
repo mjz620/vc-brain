@@ -75,6 +75,55 @@ def _load_reference() -> dict:
     return json.loads((config.FIXTURES / "sourcing_reference.json").read_text())
 
 
+def _channel_outcomes(conn, live_founders: list[dict]) -> dict[str, dict]:
+    """Close the loop: join this fund's OWN realized decisions back to the channel
+    that sourced each founder.
+
+    Two distinct quantities, kept separate on purpose because they are not equally
+    populated and conflating them would overstate what the graph knows:
+
+    `quality`  — median Signal score of the founders a channel produced. Populated
+                 today across every channel, so it is what node glow encodes.
+    `outcomes` — screened / killed / invested / passed counts from kill_log and
+                 memos. This is genuine outcome data, but it is thin early on, so
+                 `decided` is reported honestly and `decision_yield` stays None until
+                 a channel actually has decisions. An unlit channel means "no
+                 decisions yet", never "performed badly".
+    """
+    by_source: dict[str, list[float]] = {}
+    fids_by_source: dict[str, list[str]] = {}
+    for f in live_founders:
+        fids_by_source.setdefault(f["source"], []).append(f["id"])
+        if f["score"] is not None:
+            by_source.setdefault(f["source"], []).append(f["score"])
+
+    killed = {r["founder_id"] for r in
+              conn.execute("SELECT DISTINCT founder_id FROM kill_log").fetchall()}
+    decisions = {r["founder_id"]: r["decision"] for r in
+                 conn.execute("SELECT founder_id, decision FROM memos").fetchall()}
+
+    out: dict[str, dict] = {}
+    for source, fids in fids_by_source.items():
+        scores = sorted(by_source.get(source, []))
+        median = scores[len(scores) // 2] if scores else None
+        decided = [decisions[f] for f in fids if f in decisions]
+        positive = sum(1 for d in decided if d in ("invest", "conditional"))
+        out[source] = {
+            "founders": len(fids),
+            "median_signal": median,
+            # Glow: median Signal normalised to 0-1. Real, populated, and labelled
+            # for what it is — NOT a claim about realised founder success.
+            "glow": round(median / 10.0, 3) if median is not None else None,
+            "screen_killed": sum(1 for f in fids if f in killed),
+            "decided": len(decided),
+            "invested": sum(1 for d in decided if d == "invest"),
+            "passed": sum(1 for d in decided if d == "pass"),
+            "conditional": sum(1 for d in decided if d == "conditional"),
+            "decision_yield": round(positive / len(decided), 2) if decided else None,
+        }
+    return out
+
+
 def _live_channels(conn) -> dict[str, dict]:
     rows = conn.execute(
         "SELECT s.source, COUNT(DISTINCT s.id) signals, "
@@ -127,6 +176,13 @@ def network():
 
     # --- LIVE overlay: this pipeline's own founders, wired to their channel ---
     live_founders = _live_founders(conn)
+    outcomes = _channel_outcomes(conn, live_founders)
+    # Channel nodes glow by the median Signal of the founders they produced. A channel
+    # this instance has never sourced from has no glow at all, rather than a dim one.
+    for n in nodes:
+        if n["type"] == "channel":
+            src = _CHANNEL_TO_LIVE.get(n["label"])
+            n["glow"] = (outcomes.get(src) or {}).get("glow") if src else None
     ref_channel_ids = {f"ch:{ch}" for ch in ref["channels"]}
     live_hub_counts = Counter(f["source"] for f in live_founders
                               if f["source"] in _LIVE_ONLY_HUBS)
@@ -134,7 +190,8 @@ def network():
         if live_hub_counts.get(src):
             nodes.append({"id": f"ch:{label}", "type": "channel", "label": label,
                           "size": live_hub_counts[src], "cluster": label,
-                          "covered_live": True, "live_only": True})
+                          "covered_live": True, "live_only": True,
+                          "glow": (outcomes.get(src) or {}).get("glow")})
     for f in live_founders:
         ch = _LIVE_TO_CHANNEL.get(f["source"]) or _LIVE_ONLY_HUBS.get(f["source"])
         target = f"ch:{ch}" if ch else None
@@ -142,7 +199,9 @@ def network():
             continue  # source with no channel to attach to — skip rather than orphan
         nodes.append({"id": f"fr:{f['id']}", "type": "founder", "label": f["name"],
                       "size": f["score"] if f["score"] is not None else 0.0,
-                      "cluster": ch, "signal": f["score"], "source": f["source"]})
+                      "cluster": ch, "signal": f["score"], "source": f["source"],
+                      "glow": round(f["score"] / 10.0, 3) if f["score"] is not None
+                              else None})
         links.append({"source": f"fr:{f['id']}", "target": target, "kind": "live"})
     live_founder_n = sum(1 for n in nodes if n["type"] == "founder")
 
@@ -156,6 +215,7 @@ def network():
             "notable": [s["name"] for s in startups if s["channel"] == ch][:4],
             "live_source": live_src, "live": live.get(live_src) if live_src else None,
             "covered_live": bool(live_src and live_src in live),
+            "outcomes": outcomes.get(live_src) if live_src else None,
         })
     channel_intel.sort(key=lambda c: c["historical_successes"], reverse=True)
 
@@ -176,6 +236,11 @@ def network():
         "top_investors": top_investors,
         "underexplored_channels": underexplored,
         "live_channels": live,
+        "channel_outcomes": outcomes,
+        "glow_encodes": ("median Signal score of the founders each channel produced "
+                         "(0-1). Realised decision yield is reported separately in "
+                         "channel_outcomes.decision_yield and is null until a channel "
+                         "has decisions — unlit means no data, not poor performance."),
         "counts": {"startups": len(startups), "channels": len(ref["channels"]),
                    "investors": len(investor_counts), "edges": len(links),
                    "live_founders": live_founder_n},
