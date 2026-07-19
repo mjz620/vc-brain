@@ -104,16 +104,24 @@ export default function Decision({ thesis, founderId, founders, openFounder }: {
                   const a: Axis | undefined = axById[k];
                   const sc = a && a.score != null ? a.score : 0;
                   const tc = topClaim(k);
-                  return (
-                    <div className="axline" key={k} onClick={() => tc && setTraceId(tc)}
-                      style={tc ? { cursor: "pointer" } : undefined}
-                      title={tc ? `open the trace of this axis's top claim [${tc}]` : undefined}>
+                  const inner = (
+                    <>
                       <span className="lbl">{AXLABEL[k]}</span>
                       <span className="bar"><span className={stanceClass(a?.stance)} style={{ width: `${sc * 10}%` }} /></span>
                       <span className="num">
                         {a && a.score != null ? <>{a.score} {TREND[a.trend || "new"]} <em>{a.stance}</em></> : "—"}
                       </span>
-                    </div>
+                    </>
+                  );
+                  // A clickable axis is a real button (keyboard-operable); a non-clickable
+                  // one stays a plain row.
+                  return tc ? (
+                    <button className="axline" key={k} onClick={() => setTraceId(tc)}
+                      aria-label={`${AXLABEL[k]} axis — open the trace of its top claim ${tc}`}>
+                      {inner}
+                    </button>
+                  ) : (
+                    <div className="axline" key={k}>{inner}</div>
                   );
                 })}
               </div>

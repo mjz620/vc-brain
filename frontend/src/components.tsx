@@ -162,10 +162,17 @@ export function TracePanel({ founderId, claimId, onClose }:
     setTrace(null); setErr(null); setShowDebate(false);
     api.getTraceCached(founderId, claimId).then(setTrace).catch((e) => setErr(e.message));
   }, [founderId, claimId]);
+  // Esc closes the evidence rail — a keyboard exit from the panel.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   return (
-    <aside className="evidence trace">
-      <button className="x" onClick={onClose}>×</button>
+    <aside className="evidence trace" role="complementary" aria-label="Evidence trace">
+      <button className="x" onClick={onClose} aria-label="Close evidence panel"
+        title="Close (Esc)">×</button>
       {err && <Err msg={err} />}
       {!trace && !err && <Skeleton lines={6} />}
       {trace && (
@@ -289,7 +296,7 @@ export function ProvenanceGraph({ decision, turnsOn, claims, totalClaims, onOpen
 
   return (
     <div className="prov">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img"
+      <svg viewBox={`0 0 ${W} ${H}`} role="group"
         aria-label="provenance: decision to claims to evidence domains">
         {shown.map((c, i) => (
           <path key={`e1-${c.id}`}
@@ -311,9 +318,14 @@ export function ProvenanceGraph({ decision, turnsOn, claims, totalClaims, onOpen
         </g>
         {shown.map((c, i) => (
           <g key={c.id} className={`pnode ${tierClass(c.corroboration)}${dim(activeClaims.has(c.id))}`}
+            role="button" tabIndex={0}
+            aria-label={`${c.id}, ${c.corroboration} — open full trace`}
             onMouseEnter={() => setHover({ kind: "claim", key: c.id })}
             onMouseLeave={() => setHover(null)}
-            onClick={() => onOpenClaim(c.id)}>
+            onFocus={() => setHover({ kind: "claim", key: c.id })}
+            onBlur={() => setHover(null)}
+            onClick={() => onOpenClaim(c.id)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenClaim(c.id); } }}>
             <title>{`${c.id} (${c.corroboration}) — ${c.text} · click for full trace`}</title>
             <rect x={280} y={cy(i, shown.length) - 12} width={152} height={24} rx={6} />
             <text x={292} y={cy(i, shown.length) + 4}>{c.id} · {TIER_SHORT[c.corroboration] || c.corroboration}</text>

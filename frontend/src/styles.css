@@ -289,6 +289,23 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
   animation: pulse 1.2s ease-in-out infinite; }
 .sk-line:nth-child(odd) { width: 82%; }
 @keyframes pulse { 50% { opacity: 0.45; } }
+
+/* ---- accessibility: keyboard focus + reduced motion -------------------- */
+/* One visible focus ring for every keyboard-reachable control (none existed). */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+/* SVG provenance nodes take focus via the group's rect. */
+.pnode:focus-visible { outline: none; }
+.pnode:focus-visible rect { stroke: var(--accent); stroke-width: 2; }
+/* An axis row is a real button when it opens a trace; strip button chrome. */
+button.axline { background: none; border: none; font: inherit; color: inherit;
+  width: 100%; text-align: left; padding: 0; cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+  }
+}
 .err { background: var(--bad-bg); color: var(--bad); border-radius: var(--r-sm);
   padding: 8px 12px; font-size: 12.5px; margin: 8px 0; }
 .citegroup { display: inline; }
@@ -342,7 +359,7 @@ a.domchip:hover { text-decoration: underline; }
 .card .meters { margin-top: 12px; }
 
 /* ---- contradiction spotlight --------------------------------------------- */
-.spotlight { border: 1px solid var(--bad); border-left: 4px solid var(--bad);
+.spotlight { border: 1px solid var(--bad);
   background: var(--bad-bg); border-radius: var(--r); padding: 12px 16px; margin: 0 0 24px; }
 .spot-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .spot-head h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
