@@ -1,6 +1,8 @@
 /* ---- design system ---------------------------------------------------- */
 :root {
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* documents (memos, page titles, excerpts) read in serif; chrome stays Inter */
+  --serif: "Newsreader", "Iowan Old Style", "Palatino", Georgia, "Times New Roman", serif;
   --mono: "SFMono-Regular", ui-monospace, "JetBrains Mono", Menlo, monospace;
   --r: 12px; --r-sm: 8px;
   --sp: 8px;
@@ -59,7 +61,8 @@ select.control { padding-right: 26px; max-width: 190px; }
 
 /* ---- page headers ------------------------------------------------------ */
 .page-h { margin-bottom: 20px; }
-.page-h h1 { font-size: 26px; letter-spacing: -0.02em; margin: 0 0 6px; }
+.page-h h1 { font-family: var(--serif); font-weight: 600; font-size: 28px;
+  letter-spacing: -0.01em; margin: 0 0 8px; }
 .h-founder { color: var(--accent); font-weight: 600; }
 .page-sub { color: var(--muted); font-size: 13px; margin: 0; max-width: 640px; }
 .page-sub b, .page-sub em { color: var(--fg); }
@@ -124,8 +127,10 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
   padding: 0; margin-bottom: 16px; }
 .rec-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
   padding: 18px 20px; margin-bottom: 18px; box-shadow: var(--shadow); }
-.rec-card .head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.rec-card h1 { font-size: 18px; margin: 0; letter-spacing: -0.02em; }
+.rec-card .head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.rec-card h1 { font-family: var(--serif); font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+.rec-card .hist { display: flex; align-items: center; gap: 8px; }
+.rec-card .hist .m-k { margin: 0; }
 .rec-card .amt { margin-left: auto; font-size: 13px; color: var(--muted); }
 .rec-card .amt b { color: var(--fg); font-size: 16px; }
 .turns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
@@ -158,12 +163,17 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
 .lat.total { background: var(--accent-weak); color: var(--accent); }
 
 /* ---- memo + evidence -------------------------------------------------- */
-.memo-wrap { display: flex; gap: 18px; align-items: flex-start; }
+.memo-wrap { display: flex; gap: 16px; align-items: flex-start; }
+@media (max-width: 860px) {
+  .memo-wrap { flex-direction: column-reverse; }
+  .evidence, .trace { width: 100%; position: static; max-height: none; }
+}
 .memo { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r); padding: 22px 26px; box-shadow: var(--shadow); }
-.memo h2 { font-size: 15px; letter-spacing: -0.01em; margin: 20px 0 8px; }
+  border-radius: var(--r); padding: 24px 28px; box-shadow: var(--shadow);
+  font-family: var(--serif); font-size: 15.5px; line-height: 1.7; }
+.memo h2 { font-family: var(--serif); font-size: 17px; letter-spacing: -0.01em; margin: 24px 0 8px; }
 .memo h2:first-child { margin-top: 0; }
-.memo h3 { font-size: 13px; margin: 16px 0 6px; }
+.memo h3 { font-family: var(--serif); font-size: 15px; margin: 16px 0 8px; }
 .memo p { margin: 8px 0; } .memo li { margin: 4px 0 4px 18px; }
 .memo .sp { height: 6px; }
 .cite { background: var(--accent-weak); color: var(--accent); border: none; border-radius: 5px;
@@ -282,3 +292,128 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
 .err { background: var(--bad-bg); color: var(--bad); border-radius: var(--r-sm);
   padding: 8px 12px; font-size: 12.5px; margin: 8px 0; }
 .citegroup { display: inline; }
+.pulse { animation: pulse 1.2s ease-in-out infinite; }
+.runline { color: var(--accent); font-size: 12.5px; }
+.empty { color: var(--muted); font-size: 13px; padding: 12px 0; }
+
+/* ---- numbers are tabular everywhere ------------------------------------- */
+.card .sc, .rec-card .amt, .section-h .count, .chan-rate, .v-stat, .axcell .v,
+.axline .num, .lat, .kill, .m-v, .src-date { font-variant-numeric: tabular-nums; }
+
+/* ---- wide tables scroll inside their own wrapper, never the page --------- */
+.tablewrap { overflow-x: auto; }
+.tablewrap > table.funnel { min-width: 560px; }
+
+/* ---- evidence source card (trace panel hero) ----------------------------- */
+.srccard { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: 12px; margin: 0 0 12px; }
+.src-top { display: flex; align-items: center; gap: 8px; }
+.domchip { display: inline-flex; align-items: center; font-family: var(--mono);
+  font-size: 11px; font-weight: 650; background: var(--accent-weak); color: var(--accent);
+  border-radius: 4px; padding: 2px 8px; text-decoration: none; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+a.domchip:hover { text-decoration: underline; }
+.domchip.deck { background: var(--mid-bg); color: var(--mid); }
+.src-date { font-size: 11px; color: var(--faint); }
+.src-title { font-weight: 600; font-size: 12.5px; margin: 8px 0 0; }
+.src-quote { font-family: var(--serif); font-style: italic; font-size: 13.5px;
+  line-height: 1.55; color: var(--muted); margin: 8px 0 0; padding-left: 10px;
+  border-left: 2px solid var(--line); }
+
+/* ---- founder-score sparkline --------------------------------------------- */
+.spark { display: block; overflow: visible; flex-shrink: 0; }
+.spark polyline { stroke: var(--accent); stroke-width: 1.5; fill: none;
+  stroke-linecap: round; stroke-linejoin: round; }
+.spark circle { fill: var(--accent); }
+.spark line { stroke: var(--faint); stroke-width: 2; stroke-linecap: round; }
+
+/* ---- Signal / Coverage: two meters, never one number --------------------- */
+.meters { display: flex; gap: 16px; }
+.meter { flex: 1; min-width: 0; }
+.meter .m-k { display: block; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--faint); font-weight: 650; margin-bottom: 4px; }
+.meter .m-bar { display: block; height: 4px; background: var(--bg2);
+  border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+.meter .m-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.meter.cov .m-bar > span { background: var(--faint); }
+.meter .m-v { font-size: 12px; font-weight: 650; }
+.meter .m-v em { font-style: normal; font-weight: 500; font-size: 10.5px; color: var(--faint); }
+.funnel .meters { min-width: 148px; gap: 12px; }
+.card .meters { margin-top: 12px; }
+
+/* ---- contradiction spotlight --------------------------------------------- */
+.spotlight { border: 1px solid var(--bad); border-left: 4px solid var(--bad);
+  background: var(--bad-bg); border-radius: var(--r); padding: 12px 16px; margin: 0 0 24px; }
+.spot-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.spot-head h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--bad); margin: 0; font-weight: 700; }
+.spot-count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.verdict { font-size: 12.5px; color: var(--muted); margin: -2px 0 8px; padding: 0 12px; }
+.verdict b { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+/* ---- ask this memo -------------------------------------------------------- */
+.ask { margin-top: 16px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 16px 20px; box-shadow: var(--shadow); }
+.ask-row { display: flex; gap: 8px; }
+.ask-row .filter { margin: 0; flex: 1; }
+.ask-a { font-family: var(--serif); font-size: 15px; line-height: 1.7; margin: 12px 0 4px; }
+.ask-refused { background: var(--mid-bg); color: var(--mid); border-radius: var(--r-sm);
+  padding: 8px 12px; font-size: 13px; margin-top: 12px; }
+.ask-refused .gap-badge { vertical-align: 1px; }
+.ask-valid { font-size: 12px; color: var(--good); margin-top: 8px; }
+.ask-valid.bad { color: var(--bad); }
+
+/* ---- provenance graph ----------------------------------------------------- */
+details.provwrap { background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 12px 16px; margin-bottom: 20px; box-shadow: var(--shadow); }
+details.provwrap summary { cursor: pointer; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+details.provwrap summary:hover { color: var(--fg); }
+.prov { margin-top: 12px; overflow-x: auto; }
+.prov svg { width: 100%; min-width: 560px; height: auto; display: block; }
+.prov .edge { fill: none; stroke: var(--line); stroke-width: 1.5;
+  transition: stroke .12s, opacity .12s; }
+.prov .edge.hot { stroke: var(--accent); }
+.prov .dim { opacity: 0.3; }
+.prov g { transition: opacity .12s; }
+.prov text { font-family: var(--mono); font-size: 11px; fill: var(--fg); }
+.prov .pnode { cursor: pointer; }
+.prov .pnode rect, .prov .dec-node rect { fill: var(--panel); stroke: var(--line); }
+.prov .tier-corr rect { fill: var(--good-bg); stroke: var(--good); }
+.prov .tier-corr text { fill: var(--good); }
+.prov .tier-single rect { fill: var(--mid-bg); stroke: var(--mid); }
+.prov .tier-single text { fill: var(--mid); }
+.prov .tier-self rect { fill: var(--bg2); stroke: var(--line); }
+.prov .tier-self text { fill: var(--muted); }
+.prov .tier-contra rect { fill: var(--bad-bg); stroke: var(--bad); }
+.prov .tier-contra text { fill: var(--bad); }
+.prov .tier-inferred rect { fill: none; stroke: var(--line); stroke-dasharray: 3 3; }
+.prov .tier-inferred text { fill: var(--muted); }
+.prov .dec-invest rect { fill: var(--good-bg); stroke: var(--good); }
+.prov .dec-invest text { fill: var(--good); font-weight: 700; }
+.prov .dec-conditional rect { fill: var(--mid-bg); stroke: var(--mid); }
+.prov .dec-conditional text { fill: var(--mid); font-weight: 700; }
+.prov .dec-pass rect { fill: var(--bad-bg); stroke: var(--bad); }
+.prov .dec-pass text { fill: var(--bad); font-weight: 700; }
+.prov .dec-none rect { fill: var(--bg2); stroke: var(--line); }
+.prov .dec-none text { fill: var(--muted); }
+.prov .dnode rect { fill: var(--bg2); stroke: none; }
+.prov .dnode text { fill: var(--muted); }
+.prov .prov-more { fill: var(--faint); font-size: 10.5px; }
+
+/* ---- decision badge: conditional-invest reads as conditional -------------- */
+.badge.invest-conditional { color: var(--mid); background: var(--mid-bg); }
+
+/* ---- compare page ---------------------------------------------------------- */
+.cmp-pick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+table.cmp td, table.cmp th { vertical-align: top; }
+table.cmp th.colh { font-size: 13px; text-transform: none; letter-spacing: 0;
+  color: var(--fg); font-weight: 650; }
+table.cmp td.rowh { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); font-weight: 600; white-space: nowrap; }
+.cmp-score { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums;
+  display: block; }
+.cmp-score.good { color: var(--good); } .cmp-score.mid { color: var(--mid); }
+.cmp-score.bad { color: var(--bad); }
+.cmp-score em { font-style: normal; font-size: 11.5px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+.cmp-note { color: var(--muted); font-size: 12px; }

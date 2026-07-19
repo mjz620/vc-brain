@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import * as api from "../api";
-import type { Brief, Claim } from "../api";
+import type { Brief, Claim, Trace } from "../api";
 import { Err, FounderSwitcher, Skeleton, TierChip, TracePanel } from "../components";
 
 /* Page 3 — "Watch it argue with itself."
@@ -38,7 +38,11 @@ export default function Diligence({ thesis, founderId, founders, openFounder }: 
     return (
       <div>
         <PageHead founderId={founderId} founders={founders} openFounder={openFounder} />
-        <p className="muted">Pick a founder with a diligence run:</p>
+        {founders.length === 0 && (
+          <p className="empty">No diligence runs yet — screen a founder or submit an
+            application and the claim ledger appears here.</p>
+        )}
+        {founders.length > 0 && <p className="muted">Pick a founder with a diligence run:</p>}
         <div className="picker">
           {founders.map((f) => (
             <button key={f.id} className="minibtn" onClick={() => openFounder(f.id)}>{f.name}</button>
@@ -77,13 +81,24 @@ export default function Diligence({ thesis, founderId, founders, openFounder }: 
             )}
 
             {contradicted.length > 0 && (
-              <>
-                <div className="section-h"><h2>⚠ Contradicted — read first</h2></div>
+              <div className="spotlight">
+                <div className="spot-head">
+                  <h2>⚠ Contradiction spotlight</h2>
+                  <span className="spot-count">
+                    {contradicted.length} of {brief.claims.length} claims contradicted —
+                    read these before anything else
+                  </span>
+                </div>
                 {contradicted.map((c) => (
-                  <ClaimRow key={c.id} c={c} active={traceId === c.id}
-                    onClick={() => setTraceId(c.id)} />
+                  <div key={c.id}>
+                    <ClaimRow c={c} active={traceId === c.id}
+                      onClick={() => setTraceId(c.id)} />
+                    {traceId === c.id && founderId && (
+                      <VerdictLine founderId={founderId} claimId={c.id} />
+                    )}
+                  </div>
                 ))}
-              </>
+              </div>
             )}
 
             <div className="section-h"><h2>Claim ledger — grouped by tier</h2>
@@ -117,6 +132,26 @@ function PageHead({ founderId, founders, openFounder }: {
         → judge</b> debate whose verdict overrides the rubric; a no-LLM validator
         rejects any citation to a claim that doesn't exist.
       </p>
+    </div>
+  );
+}
+
+/* Adjudication verdict one-liner, fetched only when the claim is clicked
+   (shared trace cache — the panel and this line cost one request total). */
+function VerdictLine({ founderId, claimId }: { founderId: string; claimId: string }) {
+  const [trace, setTrace] = useState<Trace | null>(null);
+  useEffect(() => {
+    let live = true;
+    setTrace(null);
+    api.getTraceCached(founderId, claimId).then((t) => { if (live) setTrace(t); }).catch(() => {});
+    return () => { live = false; };
+  }, [founderId, claimId]);
+  if (!trace) return <div className="verdict">…</div>;
+  if (!trace.adjudication) return <div className="verdict">uncontested — rubric-anchored, no debate needed</div>;
+  return (
+    <div className="verdict">
+      judge: trust <b>{trace.rubric_trust.toFixed(2)} → {trace.adjudication.trust.toFixed(2)}</b>
+      {" — "}{trace.adjudication.rationale}
     </div>
   );
 }

@@ -124,18 +124,26 @@ function QueryBox({ openFounder }: { openFounder: (id: string) => void }) {
               {res.ignored_criteria.map((c) => `"${c.text}" — ${c.reason}`).join("; ")}
             </p>
           )}
-          <table className="funnel" style={{ marginTop: 8 }}>
-            <thead><tr><th>Founder</th><th>Matched</th><th>Signal / Cov</th></tr></thead>
-            <tbody>
-              {res.results.map((r) => (
-                <tr key={r.id} onClick={() => openFounder(r.id)}>
-                  <td className="fname">{r.name}</td>
-                  <td>{r.matched_keywords.map((k) => <span key={k} className="src" style={{ marginRight: 3 }}>{k}</span>)}</td>
-                  <td><b>{r.signal ?? "—"}</b> · <span className="cov">{Math.round(r.coverage * 100)}%</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {res.results.length === 0 && (
+            <p className="empty">No founders in Memory match every evaluable criterion —
+              loosen the query or scan more sources.</p>
+          )}
+          {res.results.length > 0 && (
+            <div className="tablewrap" style={{ marginTop: 8 }}>
+            <table className="funnel">
+              <thead><tr><th>Founder</th><th>Matched</th><th>Signal / Cov</th></tr></thead>
+              <tbody>
+                {res.results.map((r) => (
+                  <tr key={r.id} onClick={() => openFounder(r.id)}>
+                    <td className="fname">{r.name}</td>
+                    <td>{r.matched_keywords.map((k) => <span key={k} className="src" style={{ marginRight: 3 }}>{k}</span>)}</td>
+                    <td><b>{r.signal ?? "—"}</b> · <span className="cov">{Math.round(r.coverage * 100)}%</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+          )}
         </>
       )}
     </div>

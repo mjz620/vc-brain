@@ -6,6 +6,11 @@ export interface Axis {
   trend?: string;
   status?: string;
 }
+export interface ScorePoint {
+  timestamp: string;
+  score: number;
+  trigger: string;
+}
 export interface FounderRow {
   id: string;
   name: string;
@@ -14,6 +19,7 @@ export interface FounderRow {
   signal: number | null;
   coverage: number;
   score_history_points: number;
+  score_history: ScorePoint[];
   has_memo: boolean;
   latency_total: number;
 }
@@ -51,6 +57,15 @@ export interface Brief {
   latency: { stages: [string, number][]; total_seconds: number };
   memo_md: string | null;
   claims: Claim[];
+  score_history: ScorePoint[];
+}
+export interface AskResult {
+  question: string;
+  answer: string;
+  cited_claim_ids: string[];
+  invalid_citations: string[];
+  refused: boolean;
+  validated: boolean;
 }
 export interface Thesis {
   file: string;
@@ -157,11 +172,19 @@ export interface Outreach {
   cited_signal_url?: string;
 }
 
+/* Errors explain in a sentence — never a raw status code. Server-provided
+   detail (incl. rate-limit messages) is always surfaced verbatim. */
+const FRIENDLY: Record<number, string> = {
+  404: "Nothing on record for this yet — it may not have been sourced or screened.",
+  422: "The server couldn't process that input — check what you entered and try again.",
+  500: "The server hit an internal error handling this request — try again in a moment.",
+};
 async function j<T>(u: string, init?: RequestInit): Promise<T> {
   const r = await fetch(u, init);
   if (!r.ok) {
     const detail = await r.json().catch(() => null);
-    throw new Error(detail?.detail || `${r.status} ${r.statusText}`);
+    throw new Error(detail?.detail || FRIENDLY[r.status]
+      || `The server couldn't complete this request (${r.status}) — try again in a moment.`);
   }
   return r.json();
 }
@@ -178,6 +201,25 @@ export const getChannels = () =>
   j<{ channels: Channel[]; suggestion: string | null }>("/api/channels");
 export const getTrace = (fid: string, cid: string) =>
   j<Trace>(`/api/trace/${fid}/${cid}`);
+/* Traces are immutable within a session: cache so the spotlight verdict line and
+   the trace panel never fetch the same claim twice. */
+const traceCache = new Map<string, Promise<Trace>>();
+export const getTraceCached = (fid: string, cid: string): Promise<Trace> => {
+  const k = `${fid}/${cid}`;
+  let p = traceCache.get(k);
+  if (!p) {
+    p = getTrace(fid, cid);
+    p.catch(() => traceCache.delete(k));
+    traceCache.set(k, p);
+  }
+  return p;
+};
+export const postAsk = (fid: string, question: string) =>
+  j<AskResult>(`/api/ask/${fid}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
 export const getOutreach = (fid: string) => j<Outreach[]>(`/api/outreach/${fid}`);
 export const postActivate = (fid: string, thesis: string) =>
   j<Outreach>(`/api/activate/${fid}?thesis=${encodeURIComponent(thesis)}`, { method: "POST" });

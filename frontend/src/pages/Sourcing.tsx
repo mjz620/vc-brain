@@ -82,7 +82,12 @@ export default function Sourcing({ thesis, openFounder, openMemo }:
           </div>
           {err && <Err msg={err} />}
           {!feed && !err && <Skeleton lines={8} />}
-          {feed && (
+          {feed && feed.founders.length === 0 && (
+            <p className="empty">No resolved founders under this thesis yet — run a live
+              scan above to pull fresh signals.</p>
+          )}
+          {feed && feed.founders.length > 0 && (
+            <div className="tablewrap">
             <table className="funnel">
               <thead>
                 <tr><th>Founder</th><th>Channels</th><th>Fit</th><th>Signal / Cov</th><th></th></tr>
@@ -114,6 +119,7 @@ export default function Sourcing({ thesis, openFounder, openMemo }:
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 
@@ -171,7 +177,7 @@ function ScanNow({ thesis, onDone }: { thesis: string; onDone: () => void }) {
         title="source to scan live (one per call — rate-limited)">
         {SCAN_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
       </select>
-      <button className="minibtn primary" onClick={go} disabled={busy}>
+      <button className={`minibtn primary${busy ? " pulse" : ""}`} onClick={go} disabled={busy}>
         {busy ? "scanning live…" : "Scan now (live)"}
       </button>
       {msg && <span className="muted" style={{ fontSize: 12.5 }}>{msg}</span>}
@@ -227,7 +233,9 @@ function ApplyForm({ openMemo }: { openMemo: (id: string) => void }) {
       {fid && run && (
         <div style={{ marginTop: 10 }}>
           {run.stages.map((s) => (
-            <div key={s.stage} className="muted" style={{ fontSize: 12.5 }}>
+            <div key={s.stage}
+              className={s.status === "running" ? "runline pulse" : "muted"}
+              style={{ fontSize: 12.5 }}>
               {STATUS_MARK[s.status] || "·"} {s.stage} — {s.status}
               {s.seconds != null ? ` (${s.seconds.toFixed(1)}s)` : ""}
               {s.detail ? ` — ${s.detail}` : ""}

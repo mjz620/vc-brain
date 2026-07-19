@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
 import type { FounderRow } from "../api";
-import { AXES, AXLABEL, Err, Skeleton, stanceClass, TREND } from "../components";
+import { AXES, AXLABEL, Err, Meters, Skeleton, Sparkline, stanceClass, TREND } from "../components";
 
 /* Page 2 — "Three independent verdicts, never averaged." */
 export default function Screening({ thesis, openFounder }:
@@ -51,9 +51,10 @@ export default function Screening({ thesis, openFounder }:
             <span className="count">{rest.length}</span></div>
           <input className="filter" placeholder="filter by name / source…"
             value={filter} onChange={(e) => setFilter(e.target.value)} />
+          <div className="tablewrap">
           <table className="funnel">
             <thead>
-              <tr><th>Founder</th><th>Source</th><th>F-Score / Cov</th>
+              <tr><th>Founder</th><th>Source</th><th>Signal / Coverage</th>
                 <th>Founder</th><th>Market</th><th>Idea vs Mkt</th></tr>
             </thead>
             <tbody>
@@ -64,11 +65,8 @@ export default function Screening({ thesis, openFounder }:
                   <tr key={f.id} onClick={() => openFounder(f.id)}>
                     <td className="fname">{f.name}</td>
                     <td><span className="src">{f.source}</span></td>
-                    <td>
-                      <span className="fscore" title={`persistent Founder Score · ${f.score_history_points} history points`}>
-                        {f.signal ?? "—"}
-                      </span>{" "}
-                      · <span className="cov">{Math.round(f.coverage * 100)}%</span>
+                    <td title={`persistent Founder Score · ${f.score_history_points} history points`}>
+                      <Meters signal={f.signal} coverage={f.coverage} />
                     </td>
                     {unscreened
                       ? <td colSpan={3} className="muted">not screened under this thesis</td>
@@ -86,6 +84,7 @@ export default function Screening({ thesis, openFounder }:
               })}
             </tbody>
           </table>
+          </div>
         </>
       )}
 
@@ -109,7 +108,11 @@ function FounderCard({ f, onOpen }: { f: FounderRow; onOpen: () => void }) {
       <div className="top">
         <span className="name">{f.name}</span>
         <span className="pill">{f.source === "deck" ? "inbound" : f.source}</span>
-        <span className="sc"><b>{f.signal ?? "—"}</b> signal · {Math.round(f.coverage * 100)}% cov</span>
+        {f.score_history?.length > 0 && (
+          <span className="sc" title="Founder Score history — hover a point for its trigger">
+            <Sparkline history={f.score_history} />
+          </span>
+        )}
       </div>
       <div className="axrow">
         {AXES.map((k) => {
@@ -125,6 +128,7 @@ function FounderCard({ f, onOpen }: { f: FounderRow; onOpen: () => void }) {
           );
         })}
       </div>
+      <Meters signal={f.signal} coverage={f.coverage} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import Screening from "./pages/Screening";
 import Diligence from "./pages/Diligence";
 import Decision from "./pages/Decision";
 import ThesisPage from "./pages/Thesis";
+import Compare from "./pages/Compare";
 
 /* Shell: left sidebar mirrors the brief's own pipeline — the nav teaches the
    architecture. Sourcing → Screening → Diligence → Decision, plus the Thesis lens. */
@@ -16,6 +17,7 @@ const PAGES = [
   { key: "diligence", n: "3", label: "Diligence" },
   { key: "decision", n: "4", label: "Memo & Decision" },
   { key: "thesis", n: "5", label: "Thesis & Query" },
+  { key: "compare", n: "6", label: "Compare" },
 ] as const;
 type PageKey = (typeof PAGES)[number]["key"];
 
@@ -91,6 +93,7 @@ export default function App() {
           <ThesisPage theses={theses} thesis={thesis} setThesis={setThesis}
             refreshTheses={refreshTheses} openFounder={openDecision} />
         )}
+        {page === "compare" && <Compare thesis={thesis} openFounder={openDecision} />}
       </main>
     </div>
   );
