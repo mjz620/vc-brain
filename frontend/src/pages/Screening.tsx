@@ -62,7 +62,8 @@ export default function Screening({ thesis, openFounder }:
               <tr><th>Founder</th><th>Source</th><th>Signal / Coverage</th>
                 <th>Founder <InfoTip kind="axis" axis="founder" /></th>
                 <th>Market <InfoTip kind="axis" axis="market" /></th>
-                <th>Idea vs Mkt <InfoTip kind="axis" axis="idea" /></th></tr>
+                <th>Idea vs Mkt <InfoTip kind="axis" axis="idea" /></th>
+                <th></th></tr>
             </thead>
             <tbody>
               {rest.map((f) => {
@@ -88,6 +89,10 @@ export default function Screening({ thesis, openFounder }:
                           </td>
                         );
                       })}
+                    <td className="dilig-cell">
+                      <ForceDiligence fid={f.id} thesis={thesis}
+                        onOpen={() => openFounder(f.id)} />
+                    </td>
                   </tr>
                 );
               })}
@@ -109,6 +114,58 @@ export default function Screening({ thesis, openFounder }:
       )}
     </div>
   );
+}
+
+/* Manual override: pull a screened founder into full diligence past the kill
+   screen. Starts the same background run as an inbound apply, then polls the run
+   strip to completion so the analyst watches it happen without leaving the board. */
+function ForceDiligence({ fid, thesis, onOpen }:
+  { fid: string; thesis: string; onOpen: () => void }) {
+  const [state, setState] = useState<"idle" | "starting" | "running" | "done" | "error">("idle");
+  const [detail, setDetail] = useState("");
+
+  useEffect(() => {
+    if (state !== "running") return;
+    let live = true;
+    const tick = async () => {
+      try {
+        const r = await api.getRun(fid);
+        if (!live) return;
+        if (r.state === "ok" || r.has_memo) { setState("done"); return; }
+        if (r.state === "error") {
+          const e = r.stages.find((s) => s.status === "error");
+          setDetail(e?.detail || "diligence failed"); setState("error"); return;
+        }
+        const cur = [...r.stages].reverse().find((s) => s.status === "running");
+        setDetail(cur ? cur.stage : "starting…");
+        setTimeout(tick, 1500);
+      } catch (e) { if (live) { setDetail((e as Error).message); setState("error"); } }
+    };
+    tick();
+    return () => { live = false; };
+  }, [state, fid]);
+
+  const start = async () => {
+    setState("starting"); setDetail("starting…");
+    try {
+      const r = await api.postDiligence(fid, thesis);
+      if (r.has_memo && !r.run_started && !r.already_running) setState("done");
+      else setState("running");
+    } catch (e) { setDetail((e as Error).message); setState("error"); }
+  };
+
+  if (state === "done")
+    return <button className="minibtn primary" onClick={onOpen}>✓ open memo</button>;
+  if (state === "starting" || state === "running")
+    return <span className="dilig-run" title={detail}>
+      <span className="dilig-spin" aria-hidden="true" /> {detail}</span>;
+  if (state === "error")
+    return <span className="dilig-err">
+      <span title={detail}>failed</span>{" "}
+      <button className="linkbtn" onClick={start}>retry</button></span>;
+  return <button className="minibtn" onClick={start}
+    title="override the first-pass kill screen and run full diligence now">
+    → Diligence</button>;
 }
 
 function FounderCard({ f, onOpen }: { f: FounderRow; onOpen: () => void }) {

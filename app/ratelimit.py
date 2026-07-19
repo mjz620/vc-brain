@@ -12,6 +12,7 @@ from fastapi import HTTPException, Request
 # endpoint label -> (max calls, window seconds)
 LIMITS = {
     "apply": (3, 3600),   # each apply can cost 13-31 LLM calls
+    "diligence": (4, 3600),  # forced screen->diligence, same LLM cost as apply
     "scan": (6, 3600),    # live source fetches
     "query": (10, 60),
     "activate": (6, 3600),

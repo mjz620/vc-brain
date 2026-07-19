@@ -142,6 +142,13 @@ export interface ScanResult {
   new_signals: number;
   new_founders: { id: string; name: string; new_signals: number }[];
 }
+export interface DiligenceStart {
+  founder_id: string;
+  run_started: boolean;
+  already_running: boolean;
+  has_memo: boolean;
+  forced?: boolean;
+}
 export interface ApplyResult {
   founder_id: string;
   signal_id: string;
@@ -307,6 +314,11 @@ export const postApply = (company: string, deck_text: string) =>
     body: JSON.stringify({ company, deck_text }),
   });
 export const getRun = (fid: string) => j<RunStatus>(`/api/runs/${fid}`);
+/* Force an already-screened founder into full diligence, overriding the kill
+   screen. Same background-run contract as apply — poll getRun after. */
+export const postDiligence = (fid: string, thesis: string) =>
+  j<DiligenceStart>(`/api/diligence/${fid}?thesis=${encodeURIComponent(thesis)}`,
+    { method: "POST" });
 export const postScan = (source: string, thesis: string) =>
   j<ScanResult>(
     `/api/scan?source=${encodeURIComponent(source)}&thesis=${encodeURIComponent(thesis)}`,

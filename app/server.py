@@ -106,19 +106,19 @@ def _tracked_stage(conn, founder_id: str, name: str):
 instrument.stage = _tracked_stage
 
 
-def _run_pipeline_bg(fid: str, thesis_file: str | None) -> None:
+def _run_pipeline_bg(fid: str, thesis_file: str | None, *, market: bool = True) -> None:
     """Background thread: full diligence on a fresh conn; errors land in run_status,
-    never swallowed."""
+    never swallowed. market=True adds live Tavily market research (inbound applies);
+    a forced diligence on an already-sourced founder skips it — the founder/traction
+    analysis and decision are the point, and it keeps the run fast and dependency-free."""
     try:
         from .diligence import pipeline
         conn = _conn()
         t = _thesis(thesis_file)
-        # Real inbound company: enrich with live Tavily MARKET research so the memo's
-        # Market sizing / Competition / Exit sections are externally sourced. News
-        # enrichment is intentionally OFF here — general news feeds the founder-integrity
+        # News enrichment is intentionally OFF — general news feeds the founder-integrity
         # worker noisy web bios that manufacture false contradictions on real people;
         # it needs source-quality guardrails before it's safe to auto-enable.
-        res = pipeline.run_diligence(conn, fid, t, replay=False, news=False, market=True)
+        res = pipeline.run_diligence(conn, fid, t, replay=False, news=False, market=market)
         _set_stage(fid, "done", "ok",
                    f"{res['claims']} claims ({res['contested']} contested) -> "
                    f"decision: {res['recommendation'].decision}")
@@ -467,6 +467,57 @@ def apply(body: Application, request: Request):
     return {"founder_id": fid, "signal_id": sid, "duplicate": not inserted,
             "screened": screened, "screen_error": screen_error, "killed": killed,
             "run_started": run_started}
+
+
+@app.post("/api/diligence/{founder_id}")
+def force_diligence(founder_id: str, request: Request, thesis: str | None = None):
+    ratelimit.check("diligence", request)
+    """Force an already-screened founder into FULL diligence, overriding the
+    first-pass kill screen. This is the manual analyst override: the screen gate is
+    a triage heuristic, not a verdict, so a partner can always pull a specific
+    founder through. Runs the same pipeline as an inbound apply (background thread;
+    poll GET /api/runs/{founder_id})."""
+    conn = _conn()
+    if not conn.execute("SELECT 1 FROM founders WHERE id=?", (founder_id,)).fetchone():
+        raise HTTPException(404, "no such founder — source or apply them first")
+
+    # Don't stack a second run on top of one already in flight — but a run whose
+    # thread died (process restart, crash) leaves non-terminal rows forever; treat
+    # anything that hasn't advanced in 15 min as abandoned so it can be re-forced.
+    rows = conn.execute(
+        "SELECT stage, status, updated_at FROM run_status WHERE founder_id=?",
+        (founder_id,)).fetchall()
+    done = next((r for r in rows if r["stage"] == "done"), None)
+    terminal = done is not None and done["status"] in ("ok", "error")
+    fresh = False
+    if rows:
+        last = max(r["updated_at"] for r in rows)
+        try:
+            age = (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds()
+            fresh = age < 900
+        except ValueError:
+            fresh = True
+    running = bool(rows) and not terminal and fresh
+    has_memo = conn.execute("SELECT 1 FROM memos WHERE founder_id=? LIMIT 1",
+                            (founder_id,)).fetchone() is not None
+    if running:
+        return {"founder_id": founder_id, "run_started": False,
+                "already_running": True, "has_memo": has_memo}
+
+    from . import llm as llm_mod
+    if llm_mod.provider() is None and not config.replay_enabled(None):
+        raise HTTPException(422, "no LLM key configured — diligence needs a model")
+
+    # Rebuild the run strip: screen is marked forced (kill overridden), not re-run.
+    # Only the stages that will actually run are queued (no news/market for a force).
+    _set_stage(founder_id, "ingest", "ok", "already sourced — using signals on file")
+    _set_stage(founder_id, "screen", "ok", "forced into diligence — kill screen overridden")
+    for st in ("extract", "adjudicate", "debate", "synthesize", "done"):
+        _set_stage(founder_id, st, "queued")
+    threading.Thread(target=_run_pipeline_bg, args=(founder_id, thesis),
+                     kwargs={"market": False}, daemon=True).start()
+    return {"founder_id": founder_id, "run_started": True,
+            "already_running": False, "has_memo": has_memo, "forced": True}
 
 
 @app.get("/api/outreach/{founder_id}")
