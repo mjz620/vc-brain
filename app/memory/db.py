@@ -282,6 +282,7 @@ def _get_pool():
 
             _pool = ConnectionPool(
                 os.environ["DATABASE_URL"], min_size=0, max_size=5,
+                timeout=10,  # fail fast when Postgres is unreachable
                 configure=_configure, open=True)
         return _pool
 
@@ -291,8 +292,10 @@ def _get_pool():
 # ---------------------------------------------------------------------------
 
 def connect(path=None):
+    # Precedence: an explicit path or VC_DB_PATH always means local SQLite —
+    # so tests and local demo copies never accidentally reach the deployed DB.
     url = os.environ.get("DATABASE_URL")
-    if url and path is None:
+    if url and path is None and not os.environ.get("VC_DB_PATH"):
         pool = _get_pool()
         return PgConnection(pool.getconn(), pool)
     conn = sqlite3.connect(path or config.DB_PATH)
