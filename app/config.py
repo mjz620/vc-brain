@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")  # keys for the server/CLI; real env vars win (override=False)
-DB_PATH = ROOT / "vc_brain.db"
+DB_PATH = Path(os.environ.get("VC_DB_PATH", ROOT / "vc_brain.db"))
 CACHE_DIR = ROOT / "app" / "cache"
 FIXTURES = ROOT / "fixtures"
 
