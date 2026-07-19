@@ -52,3 +52,10 @@ class CriticResult(BaseModel):
     supported: bool
     issues: list[str]
     revised_markdown: str
+
+
+class AskAnswer(BaseModel):
+    """Grounded Q&A over the claim ledger. Refusal is a first-class outcome."""
+    answer: str
+    cited_claim_ids: list[str]
+    refused: bool

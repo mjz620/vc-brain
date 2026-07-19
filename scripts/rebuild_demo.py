@@ -42,6 +42,8 @@ def main() -> None:
     conn = db.connect()
     db.init_db(conn)
     now = datetime.now(timezone.utc).isoformat()
+    # Post-scan integrity pass runs at the end of main() (audit_merges --fix):
+    # infra-domain unlinks + @handle display names are data fixes, not scan output.
 
     # 1. Outbound scan from the replay cache.
     ta = thesis_mod.load_thesis(THESIS_A)
@@ -93,6 +95,12 @@ def main() -> None:
     fid = loader.load_fixture(conn, "founder_b_corevance", replay=True)
     r = pipeline.run_diligence(conn, fid, tb, replay=False)
     print(f"[diligence·B] {fid}: {r['recommendation'].decision}")
+
+    # Integrity pass: unlink any infra-domain merges the scan produced and apply
+    # @handle display names (agent-C data fixes live in audit_merges, not the scan).
+    import subprocess
+    subprocess.run([sys.executable, str(Path(__file__).parent / "audit_merges.py"),
+                    "--fix"], check=True)
 
     write_eval(conn)
     print(f"[done] rebuilt in {time.time() - t0:.1f}s -> {config.DB_PATH.name}")

@@ -8,12 +8,12 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, instrument
+from . import config, instrument, ratelimit
 from .decision import decision as dec
 from .memory import db, founder_score, ingest
 from .screening import axes as axes_mod
@@ -139,7 +139,9 @@ def get_run(founder_id: str):
 
 
 @app.post("/api/scan")
-def scan(source: str, topic: str | None = None, thesis: str | None = None):
+def scan(request: Request, source: str, topic: str | None = None,
+         thesis: str | None = None):
+    ratelimit.check("scan", request)
     """Live scan of ONE source (rate-limitable) with the real adapter — no replay.
     Per-source failures come back in counts as 'error: ...', never a 500."""
     from .sources import scanner
@@ -191,6 +193,7 @@ def founders(thesis: str | None = None):
                     "source": _source_of(conn, fid), "axes": axes,
                     "signal": cur["score"], "coverage": cur["coverage"],
                     "score_history_points": len(st["history"]) if st else 0,
+                    "score_history": st["history"] if st else [],
                     "has_memo": has_memo, "latency_total": lat["total_seconds"]})
     # rank by Founder Score desc (unblended axes stay separate in the payload)
     out.sort(key=lambda f: f["signal"] or 0, reverse=True)
@@ -204,6 +207,8 @@ def founder(founder_id: str, thesis: str | None = None):
     brief = dec.build(conn, founder_id, t)
     claims = [c.model_dump() for c in ingest.get_claims(conn, founder_id)]
     brief["claims"] = claims  # for click-to-evidence
+    st = founder_score.stored(conn, founder_id)
+    brief["score_history"] = st["history"] if st else []
     return brief
 
 
@@ -285,7 +290,8 @@ def channels():
 
 
 @app.get("/api/query")
-def nl_query(q: str):
+def nl_query(q: str, request: Request):
+    ratelimit.check("query", request)
     """Multi-attribute NL query (MVP 3): one cached model call parses; Memory filters.
     Non-evaluable criteria are flagged and ignored, never guessed."""
     from . import query as query_mod
@@ -346,7 +352,8 @@ class Application(BaseModel):
 
 
 @app.post("/api/apply")
-def apply(body: Application):
+def apply(body: Application, request: Request):
+    ratelimit.check("apply", request)
     """Inbound intake (MVP 4): deck + company name is the minimum bar. The deck
     lands as a self-reported signal in the same funnel as outbound. Screening runs
     synchronously; if it passes the first-pass kill screen, the FULL diligence
@@ -420,7 +427,8 @@ def outreach(founder_id: str):
 
 
 @app.post("/api/activate/{founder_id}")
-def activate_founder(founder_id: str, thesis: str | None = None):
+def activate_founder(founder_id: str, request: Request, thesis: str | None = None):
+    ratelimit.check("activate", request)
     """Draft Activate outreach citing the triggering signal (cached => replay-safe)."""
     from . import activate as activate_mod
     from . import llm as llm_mod
@@ -459,6 +467,48 @@ def save_thesis(body: ThesisConfig):
     path = config.ROOT / "config" / f"thesis_{slug}.yaml"
     path.write_text(yaml.safe_dump(body.model_dump(), sort_keys=False))
     return {"file": f"config/{path.name}", "name": body.name}
+
+
+class AskBody(BaseModel):
+    question: str
+
+
+@app.post("/api/ask/{founder_id}")
+def ask_memo(founder_id: str, body: AskBody, request: Request):
+    """Grounded Q&A: answers ONLY from the claim ledger, cites claim ids, refuses
+    when the ledger doesn't support an answer. A mechanical (no-LLM) validator
+    strips any cited id that doesn't exist — same guarantee as the memo validator."""
+    ratelimit.check("ask", request)
+    from . import llm as llm_mod
+    from . import promptlib
+    from .diligence.schemas import AskAnswer
+    if not body.question.strip():
+        raise HTTPException(422, "question is required")
+    conn = _conn()
+    claims = ingest.get_claims(conn, founder_id)
+    if not claims:
+        raise HTTPException(404, "no claim ledger for this founder — run diligence first")
+    if llm_mod.provider() is None and not config.replay_enabled(None):
+        raise HTTPException(409, "no LLM key and not in replay — cannot answer")
+    system = promptlib.load_prompt("ask_memo", default=(
+        "Answer investor questions using ONLY the provided claim ledger. Cite claim "
+        "ids in brackets for every factual sentence. If the ledger cannot support an "
+        "answer, set refused=true and say what is missing. Never use outside "
+        "knowledge or estimate missing values."))
+    ledger_txt = "\n".join(
+        f"[{c.id}] ({c.axis}, {c.corroboration}, trust={c.trust}) {c.stance}: {c.text}"
+        for c in claims)
+    out = llm_mod.call("worker", system,
+                       f"CLAIM LEDGER:\n{ledger_txt}\n\nQUESTION: {body.question}",
+                       AskAnswer, replay=config.replay_enabled(None))
+    valid = {c.id for c in claims}
+    cited = [i for i in out.cited_claim_ids if i in valid]
+    invalid = [i for i in out.cited_claim_ids if i not in valid]
+    refused = out.refused or (not cited and not out.refused and bool(invalid))
+    return {"question": body.question, "answer": out.answer,
+            "cited_claim_ids": cited, "invalid_citations": invalid,
+            "refused": refused,
+            "validated": not invalid}
 
 
 @app.get("/api/killed")

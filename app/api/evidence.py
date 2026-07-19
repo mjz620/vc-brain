@@ -10,9 +10,9 @@ signals grouped by source domain, for the UI's evidence surfacing.
 """
 import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
-from .. import cache, config
+from .. import cache, config, ratelimit
 from ..diligence import pipeline
 from ..memory import db
 from ..sources import tavily
@@ -22,7 +22,8 @@ router = APIRouter(prefix="/api")
 
 
 @router.post("/enrich/{founder_id}")
-def enrich(founder_id: str):
+def enrich(founder_id: str, request: Request):
+    ratelimit.check("enrich", request)
     if founder_id in pipeline.FIXTURE_FOUNDER_IDS:
         raise HTTPException(409, detail=(
             f"{founder_id} is a demo fixture founder — news enrichment is refused "

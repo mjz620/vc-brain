@@ -61,9 +61,14 @@ def test_budget_cap_refuses_live_call(env, monkeypatch):
 
 def test_enrich_endpoint_refuses_fixture_founders(env):
     from app.api import evidence
+
+    class _Req:  # minimal stand-in for fastapi.Request (ratelimit reads these)
+        headers = {}
+        client = None
+
     for fid in pipeline.FIXTURE_FOUNDER_IDS:
         with pytest.raises(HTTPException) as e:
-            evidence.enrich(fid)
+            evidence.enrich(fid, _Req())
         assert e.value.status_code == 409
     assert pipeline.FIXTURE_FOUNDER_IDS == {
         "founder-tracewell", "founder-corevance", "founder-parcelmind"}

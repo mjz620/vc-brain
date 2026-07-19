@@ -16,6 +16,7 @@ LIMITS = {
     "query": (10, 60),
     "activate": (6, 3600),
     "enrich": (4, 3600),  # Tavily credits
+    "ask": (12, 60),
 }
 
 _hits: dict[tuple[str, str], deque] = defaultdict(deque)
