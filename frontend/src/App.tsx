@@ -7,6 +7,8 @@ import Diligence from "./pages/Diligence";
 import Decision from "./pages/Decision";
 import ThesisPage from "./pages/Thesis";
 import Compare from "./pages/Compare";
+import MethodologyPage from "./pages/Methodology";
+import Landing from "./pages/Landing";
 
 /* Shell: left sidebar mirrors the brief's own pipeline — the nav teaches the
    architecture. Sourcing → Screening → Diligence → Decision, plus the Thesis lens. */
@@ -18,6 +20,7 @@ const PAGES = [
   { key: "decision", n: "4", label: "Memo & Decision" },
   { key: "thesis", n: "5", label: "Thesis & Query" },
   { key: "compare", n: "6", label: "Compare" },
+  { key: "methodology", n: "7", label: "Methodology" },
 ] as const;
 type PageKey = (typeof PAGES)[number]["key"];
 
@@ -35,6 +38,7 @@ function useTheme(): [string, () => void] {
 
 export default function App() {
   const [theme, toggle] = useTheme();
+  const [entered, setEntered] = useState(() => sessionStorage.getItem("entered") === "1");
   const [page, setPage] = useState<PageKey>("sourcing");
   const [theses, setTheses] = useState<Thesis[]>([]);
   const [thesis, setThesis] = useState("config/thesis_preseed_ai_infra.yaml");
@@ -53,6 +57,10 @@ export default function App() {
   // Empty id resets to the picker (the "all founders…" option in page switchers).
   const openDiligence = (id: string) => { setFounderId(id || null); setPage("diligence"); };
   const openDecision = (id: string) => { setFounderId(id || null); setPage("decision"); };
+
+  if (!entered) {
+    return <Landing onEnter={() => { sessionStorage.setItem("entered", "1"); setEntered(true); }} />;
+  }
 
   return (
     <div className="shell">
@@ -94,6 +102,7 @@ export default function App() {
             refreshTheses={refreshTheses} openFounder={openDecision} />
         )}
         {page === "compare" && <Compare thesis={thesis} openFounder={openDecision} />}
+        {page === "methodology" && <MethodologyPage />}
       </main>
     </div>
   );

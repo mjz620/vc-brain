@@ -193,6 +193,17 @@ export interface Methodology {
     claim_count: number; signal_count: number;
   };
 }
+export interface Quality {
+  channels: Record<string, { ingested: number; resolved: number;
+    distinct_founders: number; dropped: number }>;
+  drop_reasons: Record<string, number>;
+  kill_log: number;
+  dedup_protected_signals: number;
+  arxiv_pool: { ingested: number; resolved: number; awaiting_second_key: number; status: string };
+  audit: { founders_with_blacklisted_keys: string[]; unlinked_infra_merge_signals: number;
+    infra_domain_drops_at_resolve: number };
+  notes: string;
+}
 export interface Outreach {
   subject: string;
   body: string;
@@ -227,6 +238,7 @@ export const getFounder = (id: string, thesis: string) =>
 export const getKilled = () => j<{ id: string; reason: string }[]>("/api/killed");
 export const getSourcing = (thesis: string) =>
   j<SourcingFeed>(`/api/sourcing?thesis=${encodeURIComponent(thesis)}`);
+export const getQuality = () => j<Quality>("/api/quality");
 export const getChannels = () =>
   j<{ channels: Channel[]; suggestion: string | null }>("/api/channels");
 export const getTrace = (fid: string, cid: string) =>

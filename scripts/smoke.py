@@ -117,6 +117,17 @@ def main():
     check("data-quality endpoint exists", r.status_code != 404,
           f"status={r.status_code}")
 
+    # 6. Scoring transparency — the methodology endpoint backing every InfoTip
+    r = c.get("/api/methodology")
+    mj = r.json() if r.status_code == 200 else {}
+    check("methodology endpoint (global)", r.status_code == 200
+          and all(k in mj for k in ("signal", "coverage", "axes", "trust")),
+          f"status={r.status_code}")
+    if with_memo:
+        r = c.get(f"/api/methodology?founder_id={with_memo[0]['id']}")
+        check("methodology endpoint (per-founder)", r.status_code == 200
+              and "for_founder" in r.json(), f"status={r.status_code}")
+
     print(f"\n{len(FAIL)} failure(s)" if FAIL else "\nall smoke checks passed")
     sys.exit(1 if FAIL else 0)
 
