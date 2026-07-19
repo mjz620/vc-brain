@@ -19,6 +19,22 @@ from .screening import thesis as thesis_mod
 app = FastAPI(title="VC Brain")
 _DIST = config.ROOT / "frontend" / "dist"
 
+from .api import evidence as _evidence_api  # noqa: E402
+from .api import quality as _quality_api  # noqa: E402
+app.include_router(_evidence_api.router)
+app.include_router(_quality_api.router)
+
+
+@app.on_event("startup")
+def _seed_on_boot():
+    """Deployed cold start must never be empty; no-op when founders exist."""
+    from . import seed
+    try:
+        if seed.ensure_seeded():
+            print("[seed] loaded snapshot into empty database")
+    except Exception as e:  # a bad snapshot must not take the API down
+        print(f"[seed] skipped: {type(e).__name__}: {e}")
+
 
 def _conn():
     c = db.connect()
@@ -191,7 +207,7 @@ def trace(founder_id: str, claim_id: str):
     marks = ",".join("?" * len(sig_ids)) or "''"
     sigs = conn.execute(
         f"SELECT * FROM signals WHERE id IN ({marks}) OR source_url = ?",
-        (*sig_ids, row["source_url"])).fetchall()
+        (*sig_ids, row["evidence_url"])).fetchall()
     adj = conn.execute(
         "SELECT * FROM adjudications WHERE founder_id=? AND claim_id=? "
         "ORDER BY decided_at DESC LIMIT 1", (founder_id, claim_id)).fetchone()
@@ -199,7 +215,11 @@ def trace(founder_id: str, claim_id: str):
     return {
         "claim": {"id": row["claim_id"], "axis": row["axis"], "text": row["text"],
                   "stance": row["stance"], "evidence": row["evidence"],
-                  "source_url": row["source_url"], "source_type": row["source_type"],
+                  "evidence_url": row["evidence_url"],
+                  "evidence_title": row["evidence_title"],
+                  "evidence_excerpt": row["evidence_excerpt"],
+                  "retrieved_at": row["retrieved_at"],
+                  "source_type": row["source_type"],
                   "corroboration": row["corroboration"], "trust": row["trust"],
                   "observed_at": row["observed_at"]},
         "signals": [{"id": s["id"], "source": s["source"],
@@ -236,17 +256,19 @@ def apply(body: Application):
         source="deck", source_url=f"application://{fid}", content=body.deck_text,
         observed_at=config.DEMO_TODAY, founder_id=fid))
     from . import llm as llm_mod
-    screened = False
-    if llm_mod.provider() is not None or config.replay_enabled(None):
+    screened, screen_error = False, None
+    if llm_mod.provider() is None and not config.replay_enabled(None):
+        screen_error = "no LLM key configured — application stored, screening skipped"
+    else:
         try:
             from .screening import axes as axes_mod
             axes_mod.screen(conn, fid, _thesis(None),
                             replay=config.replay_enabled(None))
             screened = True
-        except Exception:
-            pass  # screening is best-effort at intake; the founder is stored either way
+        except Exception as e:  # founder is stored either way; the failure is surfaced
+            screen_error = f"{type(e).__name__}: {e}"
     return {"founder_id": fid, "signal_id": sid, "duplicate": not inserted,
-            "screened": screened}
+            "screened": screened, "screen_error": screen_error}
 
 
 @app.get("/api/outreach/{founder_id}")

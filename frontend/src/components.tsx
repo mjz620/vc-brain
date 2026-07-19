@@ -111,7 +111,7 @@ export function TracePanel({ founderId, claimId, onClose }:
           {trace.signals.length === 0 && (
             <p className="ev-snip">
               no raw signal on record —{" "}
-              <a href={trace.claim.source_url} target="_blank" rel="noreferrer">source link</a>
+              <a href={trace.claim.evidence_url} target="_blank" rel="noreferrer">source link</a>
             </p>
           )}
           {trace.signals.map((s) => (

@@ -28,9 +28,12 @@ def run_diligence(conn, founder_id: str, thesis, *, replay: bool) -> dict:
     lens = thesis_mod.lens(thesis)
     evidence = loader.founder_evidence(conn, founder_id)
 
-    # 1. Workers extract claims (grounded, non-adversarial).
+    # 1. Workers extract claims (grounded, non-adversarial). Drafts without a
+    # resolvable evidence URL are dropped + reported, never stored or patched.
     with instrument.stage(conn, founder_id, "extract"):
-        claims = ledger.assemble(workers.extract_all(evidence, replay=replay))
+        claims, dropped_claims = ledger.assemble(workers.extract_all(evidence, replay=replay))
+    for d in dropped_claims:
+        print(f"[ledger] dropped draft {d['id']}: {d['reason']}")
     valid_ids = {c.id for c in claims}
     # Cap adjudication to the most material contested claims (contradicted first).
     contested = sorted((c for c in claims if ledger.is_contested(c)),
@@ -65,4 +68,4 @@ def run_diligence(conn, founder_id: str, thesis, *, replay: bool) -> dict:
 
     _store_memo(conn, founder_id, thesis.name, rec, memo, bull, bear)
     return {"claims": len(claims), "contested": len(contested), "recommendation": rec,
-            "memo": memo, "violations": viol}
+            "memo": memo, "violations": viol, "dropped_claims": dropped_claims}

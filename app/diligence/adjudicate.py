@@ -38,7 +38,7 @@ def adjudicate(claim, evidence: str, valid_ids, *, replay: bool):
     """Run prosecutor -> defender -> judge on one contested claim. Returns
     (Verdict, prosecution_text, defense_text)."""
     base = (f"Contested claim [{claim.id}] ({claim.corroboration}): {claim.text}\n"
-            f"Evidence snippet: {claim.evidence}\nSource: {claim.source_url}\n\n"
+            f"Evidence snippet: {claim.evidence}\nSource: {claim.evidence_url}\n\n"
             f"--- Full founder evidence ---\n{evidence}")
     prosecution = _turn("adj_prosecutor", _PROSECUTOR, base, valid_ids, replay=replay)
     defense = _turn("adj_defender", _DEFENDER,

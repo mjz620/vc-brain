@@ -81,14 +81,29 @@ def append_score(conn: sqlite3.Connection, founder_id: str, entry: ScoreEntry,
 
 def store_claim(conn: sqlite3.Connection, founder_id: str, claim: Claim,
                 signal_ids: list[str] | None = None) -> None:
-    """Store a ledger claim (incl. negative results). >=1 signal per claim expected."""
+    """Store a ledger claim (incl. negative results). >=1 signal per claim expected.
+
+    If the caller doesn't pass signal_ids, they are resolved mechanically by matching
+    the claim's evidence_url against the signals table — the claim→signal chain the
+    trace endpoint walks must never depend on string matching at read time.
+    """
+    if signal_ids is None:
+        rows = conn.execute("SELECT id, content, ingested_at FROM signals "
+                            "WHERE source_url = ?", (claim.evidence_url,)).fetchall()
+        signal_ids = [r["id"] for r in rows]
+        if rows and claim.retrieved_at is None:
+            claim.retrieved_at = rows[0]["ingested_at"]
+        if rows and claim.evidence_title is None:
+            claim.evidence_title = rows[0]["content"].split("|")[0].strip()[:120]
     conn.execute(
         "INSERT OR REPLACE INTO claims (claim_id, founder_id, axis, text, stance, "
-        "evidence, source_url, source_type, corroboration, trust, observed_at, "
-        "signal_ids) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        "evidence, evidence_url, evidence_title, evidence_excerpt, retrieved_at, "
+        "source_type, corroboration, trust, observed_at, signal_ids) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (claim.id, founder_id, claim.axis, claim.text, claim.stance, claim.evidence,
-         claim.source_url, claim.source_type, claim.corroboration, claim.trust,
-         claim.observed_at, json.dumps(signal_ids or [])),
+         claim.evidence_url, claim.evidence_title, claim.evidence_excerpt,
+         claim.retrieved_at, claim.source_type, claim.corroboration, claim.trust,
+         claim.observed_at, json.dumps(signal_ids)),
     )
     conn.commit()
 

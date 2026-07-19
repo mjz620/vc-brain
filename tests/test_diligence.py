@@ -77,7 +77,7 @@ def test_contested_selection_matches_tiers():
     from app.memory.models import Claim
     def mk(corr):
         return Claim(id="x", axis="founder", text="t", stance="neutral", evidence="e",
-                     source_url="u", source_type="web", corroboration=corr, trust=0.5)
+                     evidence_url="https://x.example/u", source_type="web", corroboration=corr, trust=0.5)
     assert ledger.is_contested(mk("contradicted"))
     assert ledger.is_contested(mk("self_reported"))
     assert not ledger.is_contested(mk("corroborated"))

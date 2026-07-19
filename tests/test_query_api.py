@@ -41,7 +41,7 @@ def test_nl_query_filters_and_flags(conn, monkeypatch):
 def test_trace_endpoint_returns_chain(conn):
     ingest.store_claim(conn, "f1", Claim(
         id="team-01", axis="founder", text="ships fast", stance="supports",
-        evidence="61-day streak", source_url="https://github.com/nf/x",
+        evidence="61-day streak", evidence_url="https://github.com/nf/x",
         source_type="github", corroboration="corroborated", trust=0.85),
         signal_ids=[])
     conn.execute("INSERT INTO adjudications VALUES (?,?,?,?,?,?,?,?)",

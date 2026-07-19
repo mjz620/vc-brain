@@ -8,6 +8,7 @@ thesis-swap beat) -> eval summary to docs/EVAL.md.
 LLM/HTTP calls hit the replay cache; anything unseeded runs live once (needs a key)
 and is cached for every run after. Run twice: second run must be byte-stable.
 """
+import os
 import shutil
 import sys
 import time
@@ -31,6 +32,9 @@ N_SCREEN = 8  # top thesis-matched outbound founders to screen
 
 def main() -> None:
     t0 = time.time()
+    if os.environ.get("DATABASE_URL"):
+        raise SystemExit("rebuild_demo rebuilds the LOCAL SQLite demo DB — unset "
+                         "DATABASE_URL (deployed Postgres is seeded via app/seed.py)")
     if config.DB_PATH.exists():
         bak = config.DB_PATH.with_suffix(".db.bak")
         shutil.move(config.DB_PATH, bak)

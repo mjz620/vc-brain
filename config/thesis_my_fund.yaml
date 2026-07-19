@@ -1,0 +1,16 @@
+name: My Fund
+sectors:
+- ai-infra
+- developer-tools
+stage: pre-seed
+geography:
+- US
+- EU
+- remote
+check_size_usd: 100000
+ownership_target_pct: 8.0
+risk_appetite: high
+topics:
+- llm
+- agents
+- evaluation

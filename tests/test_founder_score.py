@@ -28,7 +28,7 @@ def conn():
 
 def _claim(cid, axis, text, corroboration="single_source"):
     return Claim(id=cid, axis=axis, text=text, stance="supports", evidence="e",
-                 source_url="https://x", source_type="web",
+                 evidence_url="https://x", source_type="web",
                  corroboration=corroboration, trust=0.6)
 
 

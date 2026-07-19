@@ -22,7 +22,10 @@ export interface Claim {
   text: string;
   trust: number;
   corroboration: string;
-  source_url: string;
+  evidence_url: string;
+  evidence_title?: string | null;
+  evidence_excerpt?: string | null;
+  retrieved_at?: string | null;
   source_type: string;
   evidence: string;
   stance: string;

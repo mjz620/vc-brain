@@ -53,14 +53,14 @@ def test_negative_result_is_a_first_class_claim(conn):
     claim = Claim(id="dd-02", axis="founder", stance="contradicts",
                   text="No Form D exists for DataLoom's claimed $4M seed.",
                   evidence="EDGAR full-text search: no filing found.",
-                  source_url=url, source_type="web", corroboration="corroborated",
+                  evidence_url=url, source_type="web", corroboration="corroborated",
                   trust=0.9, observed_at="2026-07-18")
     ingest.store_claim(conn, "f1", claim, signal_ids=[])
     got = ingest.get_claims(conn, "f1")
     assert len(got) == 1
     assert got[0].id == "dd-02"
     assert got[0].stance == "contradicts"
-    assert got[0].source_url == url  # the search URL is the source
+    assert got[0].evidence_url == url  # the search URL is the source
 
 
 def test_score_history_is_append_only_trend(conn):

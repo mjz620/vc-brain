@@ -9,17 +9,20 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-Source = Literal["github", "hn", "arxiv", "producthunt", "yc", "deck", "web", "manual"]
+Source = Literal["github", "hn", "arxiv", "producthunt", "yc", "deck", "web",
+                 "tavily", "manual"]
 
 
 class Claim(BaseModel):
     """One evidence-tagged assertion in the ledger. Spec §4, verbatim fields.
 
-    A negative result is a first-class claim: e.g. stance="contradicts",
-    source_type="web", evidence="EDGAR search for DataLoom Form D: no filing found",
-    source_url=<the search URL>. Nothing about gaps is left implicit.
+    Every claim MUST trace to a resolvable evidence URL — a claim without one is a
+    schema violation, not a warning. A negative result is a first-class claim: e.g.
+    stance="contradicts", source_type="web", evidence="EDGAR search for DataLoom
+    Form D: no filing found", evidence_url=<the search URL that returned nothing>.
+    Nothing about gaps is left implicit.
     """
 
     id: str  # e.g. "team-03"
@@ -27,11 +30,23 @@ class Claim(BaseModel):
     text: str
     stance: Literal["supports", "contradicts", "neutral"]
     evidence: str  # snippet
-    source_url: str
-    source_type: Literal["deck", "web", "github", "hn", "arxiv", "inferred", "unavailable"]
+    evidence_url: str
+    evidence_title: str | None = None    # human-readable source title
+    evidence_excerpt: str | None = None  # verbatim snippet backing the claim
+    retrieved_at: str | None = None      # when the evidence was fetched
+    source_type: Literal["deck", "web", "github", "hn", "arxiv", "tavily", "inferred"]
     corroboration: Literal["self_reported", "single_source", "corroborated", "contradicted"]
     trust: float  # 0–1, rubric-anchored
     observed_at: str | None = None
+
+    @field_validator("evidence_url")
+    @classmethod
+    def _resolvable(cls, v: str) -> str:
+        if not v.strip() or "://" not in v:
+            raise ValueError(
+                "claim has no resolvable evidence_url — a claim without evidence is "
+                "a schema violation (it must be dropped and logged, never stored)")
+        return v
 
 
 class Signal(BaseModel):

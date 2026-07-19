@@ -14,7 +14,7 @@ from app.screening import thesis as th
 
 def _claim(cid, text):
     return Claim(id=cid, axis="traction", text=text, stance="supports", evidence="e",
-                 source_url="https://x.example", source_type="deck",
+                 evidence_url="https://x.example", source_type="deck",
                  corroboration="self_reported", trust=0.4, observed_at="2026-07-18")
 
 

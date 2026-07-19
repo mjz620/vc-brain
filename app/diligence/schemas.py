@@ -13,7 +13,7 @@ class ClaimDraft(BaseModel):
     stance: Literal["supports", "contradicts", "neutral"]
     evidence: str
     source_url: str
-    source_type: Literal["deck", "web", "github", "hn", "arxiv", "inferred", "unavailable"]
+    source_type: Literal["deck", "web", "github", "hn", "arxiv", "tavily", "inferred"]
     corroboration: Literal["self_reported", "single_source", "corroborated", "contradicted"]
     observed_at: str | None
 

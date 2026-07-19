@@ -24,7 +24,7 @@ _DEFAULT = (
 
 def _ledger(claims) -> str:
     return "\n".join(f"[{c.id}] {c.axis} · trust {c.trust:.2f} · {c.corroboration} · "
-                     f"{c.stance}: {c.text}  (src {c.source_url})" for c in claims)
+                     f"{c.stance}: {c.text}  (src {c.evidence_url})" for c in claims)
 
 
 def synthesize(claims, rec, bull, bear, thesis_lens: str, *, score_line: str = "",

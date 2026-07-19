@@ -21,8 +21,12 @@ def rubric_trust(corroboration: str) -> float:
 
 
 def to_claim(draft: ClaimDraft) -> Claim:
+    # ClaimDraft keeps the LLM-facing `source_url` field name (prompt- and
+    # cache-key-stable); the ledger Claim stores it as the required evidence_url.
+    # Raises ValidationError if the draft carries no resolvable URL.
     return Claim(id=draft.id, axis=draft.axis, text=draft.text, stance=draft.stance,
-                 evidence=draft.evidence, source_url=draft.source_url,
+                 evidence=draft.evidence, evidence_url=draft.source_url,
+                 evidence_excerpt=draft.evidence,
                  source_type=draft.source_type, corroboration=draft.corroboration,
                  trust=rubric_trust(draft.corroboration), observed_at=draft.observed_at)
 
@@ -31,5 +35,15 @@ def is_contested(claim: Claim) -> bool:
     return claim.corroboration in CONTESTED_TIERS
 
 
-def assemble(drafts: list[ClaimDraft]) -> list[Claim]:
-    return [to_claim(d) for d in drafts]
+def assemble(drafts: list[ClaimDraft]) -> tuple[list[Claim], list[dict]]:
+    """Validate drafts into ledger claims. A draft with no resolvable evidence URL
+    is dropped and reported — never stored, never given a fabricated URL."""
+    claims, dropped = [], []
+    for d in drafts:
+        try:
+            claims.append(to_claim(d))
+        except Exception as e:
+            dropped.append({"id": d.id, "text": d.text,
+                            "reason": f"no resolvable evidence_url ({d.source_url!r})",
+                            "detail": str(e)})
+    return claims, dropped
