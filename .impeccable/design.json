@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-19T00:00:00Z",
+  "title": "Design System: VC Brain",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Evidence Blue", "canonical": "#3358d4", "dark": "#6f9bff", "tonalRamp": ["#0a1740", "#122a6b", "#1c3f9c", "#2a4dc0", "#3358d4", "#6f9bff", "#a9c1ff", "#eaeffd"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#10141a", "dark": "#e7ebf1", "tonalRamp": ["#10141a", "#232a35", "#3a4351", "#667085", "#98a2b3", "#c3cad4", "#e4e7ec", "#f6f7f9"] },
+      "paper": { "role": "neutral", "displayName": "Cool Paper", "canonical": "#f6f7f9", "dark": "#0d1017", "tonalRamp": ["#0d1017", "#12161f", "#161b24", "#232a35", "#98a2b3", "#e4e7ec", "#eef0f3", "#f6f7f9"] },
+      "corroborated": { "role": "tertiary", "displayName": "Corroborated Green", "canonical": "#157f4c", "dark": "#3bce8e", "tonalRamp": ["#0a3322", "#0f5636", "#157f4c", "#1fa563", "#3bce8e", "#7fe0b6", "#b8eed5", "#e6f4ec"] },
+      "single-source": { "role": "tertiary", "displayName": "Single-Source Amber", "canonical": "#a5620a", "dark": "#e0a63a", "tonalRamp": ["#3a2303", "#6b4207", "#a5620a", "#c9820f", "#e0a63a", "#eec478", "#f5dcab", "#fbf0dc"] },
+      "contradiction": { "role": "tertiary", "displayName": "Contradiction Red", "canonical": "#b42318", "dark": "#f0655a", "tonalRamp": ["#3d0b07", "#7a160f", "#b42318", "#d43a2d", "#f0655a", "#f5938b", "#f9c2bd", "#fbeae8"] }
+    },
+    "typographyMeta": {
+      "page-title": { "displayName": "Page Title", "purpose": "Serif page headers; editorial voice for section names." },
+      "memo-body": { "displayName": "Memo Body", "purpose": "The one long-read surface — memo prose set in serif so a recommendation reads authored." },
+      "body": { "displayName": "Body / UI", "purpose": "Default UI text, tables, descriptions. Prose caps ~70ch." },
+      "label": { "displayName": "Label", "purpose": "Uppercase organizing labels — column headers, block titles, badges." },
+      "data": { "displayName": "Data / Citation", "purpose": "Mono claim ids and inline citations; tabular-nums." }
+    },
+    "shadows": [
+      { "name": "ambient-panel", "value": "0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08)", "purpose": "The only shadow: lifts panels a hair in light mode. Removed (none) in dark mode." }
+    ],
+    "motion": [
+      { "name": "state-fast", "value": "150ms ease-out", "purpose": "Default for hover/border/background state changes." },
+      { "name": "pulse-live", "value": "1.2s ease-in-out infinite (opacity 1 -> 0.45)", "purpose": "Marks a running live pipeline stage. MUST be guarded by prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "twocol-collapse", "value": "980px" },
+      { "name": "sidebar-collapse", "value": "860px" },
+      { "name": "subgrid-collapse", "value": "820px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one real action on a view (Submit application, Scan now, Open memo).",
+      "html": "<button class=\"ds-btn-primary\">Submit application</button>",
+      "css": ".ds-btn-primary { background: var(--accent, #3358d4); color: #fff; border: 1px solid var(--accent, #3358d4); border-radius: 8px; padding: 5px 11px; font: 500 12px Inter, sans-serif; cursor: pointer; transition: filter .15s ease-out, transform .12s ease-out; } .ds-btn-primary:hover { filter: brightness(1.08); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 2px solid var(--accent, #3358d4); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: .55; cursor: default; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Default action button; quiet at rest, accent on hover.",
+      "html": "<button class=\"ds-btn-ghost\">activate</button>",
+      "css": ".ds-btn-ghost { background: var(--panel, #fff); color: var(--ink, #10141a); border: 1px solid var(--line, #e4e7ec); border-radius: 8px; padding: 5px 11px; font: 400 12px Inter, sans-serif; cursor: pointer; transition: border-color .15s ease-out, color .15s ease-out; } .ds-btn-ghost:hover { border-color: var(--accent, #3358d4); color: var(--accent, #3358d4); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--accent, #3358d4); outline-offset: 2px; }"
+    },
+    {
+      "name": "Trust-Tier Chip",
+      "kind": "chip",
+      "refersTo": "tier-corroborated",
+      "description": "Corroboration tier + trust value. Color NEVER travels without the text label (colorblind-safe).",
+      "html": "<span class=\"ds-tier ds-tier-corr\">corroborated · 0.90</span>",
+      "css": ".ds-tier { display: inline-flex; align-items: center; font: 500 11px SFMono-Regular, ui-monospace, monospace; font-variant-numeric: tabular-nums; border-radius: 20px; padding: 2px 8px; } .ds-tier-corr { color: #157f4c; background: #e6f4ec; } .ds-tier-single { color: #a5620a; background: #fbf0dc; } .ds-tier-contra { color: #b42318; background: #fbeae8; } .ds-tier-self { color: #667085; background: #eef0f3; } .ds-tier-inferred { color: #667085; background: none; border: 1px dashed #e4e7ec; }"
+    },
+    {
+      "name": "Decision Badge",
+      "kind": "chip",
+      "refersTo": "tier-contradicted",
+      "description": "Invest / pass / conditional verdict.",
+      "html": "<span class=\"ds-badge ds-badge-pass\">pass</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 5px; font: 650 11px Inter, sans-serif; text-transform: uppercase; letter-spacing: .04em; padding: 3px 9px; border-radius: 20px; } .ds-badge-invest { color: #157f4c; background: #e6f4ec; } .ds-badge-pass { color: #b42318; background: #fbeae8; } .ds-badge-conditional { color: #a5620a; background: #fbf0dc; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Text/textarea for the apply form, filters, NL query.",
+      "html": "<input class=\"ds-input\" placeholder=\"Company name\" />",
+      "css": ".ds-input { width: 100%; background: var(--panel, #fff); color: var(--ink, #10141a); border: 1px solid var(--line, #e4e7ec); border-radius: 8px; padding: 9px 12px; font: 400 14px Inter, sans-serif; box-shadow: 0 1px 2px rgba(16,24,40,.06); transition: border-color .15s ease-out; } .ds-input::placeholder { color: #98a2b3; } .ds-input:focus { outline: none; border-color: var(--accent, #3358d4); box-shadow: 0 0 0 3px #eaeffd; }"
+    },
+    {
+      "name": "Citation",
+      "kind": "custom",
+      "refersTo": "claim-row",
+      "description": "Inline clickable claim id embedded in serif memo prose; opens the evidence rail.",
+      "html": "<button class=\"ds-cite\">[team-02 · 0.90 · corroborated]</button>",
+      "css": ".ds-cite { background: #eaeffd; color: #3358d4; border: none; border-radius: 5px; padding: 1px 6px; margin: 0 1px; cursor: pointer; font: 500 12px SFMono-Regular, ui-monospace, monospace; font-variant-numeric: tabular-nums; transition: filter .15s ease-out; } .ds-cite:hover { filter: brightness(.95); text-decoration: underline; } .ds-cite:focus-visible { outline: 2px solid #3358d4; outline-offset: 1px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Editorial Terminal",
+    "overview": "VC Brain is a Bloomberg terminal that reads like a magazine. Reasoning (memos, titles, quotes) is set in a warm editorial serif so a recommendation reads authored and trustworthy; every number, score, and citation is tabular sans/mono so the data stays terminal-precise. The surface is flat and tonally layered — Paper, Paper Sink, Panel — with one accent, Evidence Blue, carrying citations, selection, and primary actions, and a strict green/amber/red/slate trust vocabulary that appears identically everywhere. Components are crisp and tactile: thin borders at rest, a decisive accent shift on interaction.",
+    "keyCharacteristics": [
+      "Serif for reasoning, tabular sans/mono for data — the two-voice split is the identity.",
+      "Flat, tonally-layered surfaces; depth from stacked neutrals, not shadow.",
+      "One accent (Evidence Blue) reserved for citations, selection, and primary actions.",
+      "A semantic trust-tier color language, always paired with a text label.",
+      "Density that serves the task; the three screening axes are shown side by side, never blended."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Evidence Blue is the only accent. It appears on citations, current selection, and primary actions — nothing else. Its rarity is what makes a citation legible as a link to proof.", "section": "colors" },
+      { "name": "The Trust-Vocabulary Rule", "body": "Green/amber/red/slate mean corroborated/single-source/contradicted/self-reported everywhere, without exception. A tier color is never reused for decoration and never travels without its text label.", "section": "colors" },
+      { "name": "The Two-Voice Rule", "body": "Serif is for reasoning a human reads (memos, titles, quotes). Sans and mono are for data and chrome. Never set a memo in sans; never set a data label in serif.", "section": "typography" },
+      { "name": "The Flat-Terminal Rule", "body": "Surfaces are flat. Depth is tonal, not cast. If a component needs a shadow to separate from its background, the wrong background tone is being used — reach for Panel over Paper instead.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do reserve Evidence Blue (#3358d4) for citations, current selection, and the one primary action per view.",
+      "Do keep green/amber/red/slate meaning corroborated/single-source/contradicted/self-reported, and always pair a tier color with its text label (WCAG-AA + colorblind-safe).",
+      "Do set memos, page titles, and evidence quotes in Newsreader serif; set all data, labels, and citations in Inter/mono with tabular-nums.",
+      "Do show the three screening axes and the Signal/Coverage split as separate values, never averaged.",
+      "Do render gaps and contradictions with weight — a flagged 'not disclosed' or a pinned contradiction is a feature of the surface.",
+      "Do convey depth with tonal layers (Paper -> Panel -> Wash) and interaction with border/background shifts.",
+      "Do guard every animation (currently the pulse on live stages) with prefers-reduced-motion."
+    ],
+    "donts": [
+      "Don't look like consumer fintech — no pastel rounding, playful illustration, or Robinhood/Cash-App softness.",
+      "Don't look like enterprise legacy (Salesforce-y) — no cluttered toolbars, dated corporate blues, heavy chrome.",
+      "Don't look like generic SaaS/AI-dashboard slop — no purple-blue AI gradients, gradient hero cards, identical icon-card grids, or big-number KPI template.",
+      "Don't use gradient text, decorative glassmorphism, or border-left/right color stripes as accents.",
+      "Don't cast shadows to separate a surface — fix the background tone instead.",
+      "Don't introduce a second accent hue, and never reuse a trust-tier color for decoration.",
+      "Don't nest cards, and don't let a wide table scroll the page body — wrap it in .tablewrap."
+    ]
+  }
+}
