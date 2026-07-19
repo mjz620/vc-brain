@@ -17,6 +17,12 @@ WORKERS = [
     ("traction", "trac",
      "product existence, customers, revenue, and usage. Deck-only figures with no external "
      "corroboration are self_reported."),
+    # news worker only runs when tavily signals exist in the evidence (see extract_all) —
+    # skipping the call for tavily-free founders avoids wasted tokens AND cache-key churn.
+    ("news", "news",
+     "claims found in tavily news/web evidence: funding, launches, customers, coverage. "
+     "Assign each claim its real axis (founder/market/traction/risk); source_type='tavily'; "
+     "a lone article is single_source, an article agreeing with a deck claim is corroborated."),
 ]
 
 _DEFAULT = (
@@ -46,6 +52,8 @@ def extract_all(evidence: str, *, replay: bool) -> list[ClaimDraft]:
     drafts: list[ClaimDraft] = []
     seen: set[str] = set()
     for axis, prefix, focus in WORKERS:
+        if axis == "news" and "[tavily]" not in evidence:
+            continue  # no tavily signals for this founder: skip the call entirely
         for c in run_worker(evidence, axis, prefix, focus, replay=replay):
             cid = c.id
             while cid in seen:  # guarantee unique ids across workers

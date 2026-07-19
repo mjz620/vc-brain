@@ -318,6 +318,17 @@ seeded with one provider replays with **no key at all**. `python scripts/rebuild
 rebuilds the entire demo database deterministically from committed caches and writes the eval
 summary.
 
+### Tavily ingestion
+
+Open-web founder research (Tavily news search + extract, `app/sources/tavily.py`) is ingested
+as **signals only**: untrusted web content never becomes a claim directly — claims derived from
+it pass the same worker extraction, corroboration rubric, and adjudication as every other
+source, and a lone article stays `single_source`. Tavily additionally applies prompt-injection
+filtering on its side before content reaches us; we still treat article text as data, never as
+instructions. All Tavily calls are replay-cached with a persisted per-month credit cap, and
+news enrichment is refused for the three demo fixture founders so cached demo claims can never
+be silently regenerated.
+
 ---
 
 ## 10. The three demo founders (the whole argument, in three rows)

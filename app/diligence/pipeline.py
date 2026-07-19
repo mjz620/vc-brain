@@ -3,10 +3,17 @@ decision-layer debate -> synthesizer -> critic -> stored memo (spec §2.4)."""
 import os
 from datetime import datetime, timezone
 
-from .. import instrument
+from .. import cache, instrument
 from ..memory import founder_score, ingest
+from ..memory.models import Signal
 from ..screening import thesis as thesis_mod
+from ..sources import tavily
 from . import adjudicate, critic, debate, ledger, loader, synthesizer, workers
+
+# Demo fixture founders: news enrichment must NEVER run for these ids. Their worker
+# evidence feeds the llm cache key — new signals would silently regenerate the three
+# demo memos' claims (CLAUDE.md: demo determinism / fixture integrity).
+FIXTURE_FOUNDER_IDS = {fid for fid, _ in loader.FIXTURES.values()}
 
 # Cost control: adjudicating every contested claim is the main API-credit driver
 # (each is a 3-call prosecutor/defender/judge debate). Cap to the most material ones,
@@ -24,8 +31,74 @@ def _store_memo(conn, founder_id, thesis_name, rec, memo, bull, bear) -> None:
     conn.commit()
 
 
-def run_diligence(conn, founder_id: str, thesis, *, replay: bool) -> dict:
+def _news_queries(conn, founder_id: str) -> list[str]:
+    """1-2 news queries from the founder's name/company (+ deck company line)."""
+    row = conn.execute("SELECT name FROM founders WHERE id = ?", (founder_id,)).fetchone()
+    if row is None:
+        raise KeyError(f"unknown founder {founder_id}")
+    parts = [p.strip() for p in row["name"].split("/") if p.strip()]
+    queries = [" ".join(parts)]
+    deck = conn.execute("SELECT content FROM signals WHERE founder_id = ? AND "
+                        "source = 'deck' LIMIT 1", (founder_id,)).fetchone()
+    if deck:
+        first = next((l.strip() for l in deck["content"].splitlines() if l.strip()), "")
+        if 0 < len(first) <= 60 and first not in queries:
+            queries.append(f"{first} startup funding")
+    elif len(parts) >= 2:
+        queries.append(f"{parts[-1]} startup funding")
+    return queries[:2]
+
+
+def enrich_news(conn, founder_id: str, *, replay: bool) -> list[dict]:
+    """Tavily news enrichment: search -> ingest results as tavily signals ->
+    extract top URLs for fuller content. Returns what was found (title/url/date).
+
+    SAFE FOR NOVEL FOUNDERS ONLY (new inbound applies). Hard-refused for the three
+    demo fixture founders — added signals change worker evidence and therefore llm
+    cache keys, which would silently regenerate the cached demo claims.
+    Raises RuntimeError/ReplayMiss when no key is set and the cache misses.
+    """
+    if founder_id in FIXTURE_FOUNDER_IDS:
+        raise ValueError(f"news enrichment refused for fixture founder {founder_id} "
+                         "(demo determinism guardrail)")
+    found: list[dict] = []
+    ranked: list[tuple[float, str]] = []
+    for q in _news_queries(conn, founder_id):
+        resp = tavily.news_search(q, replay=replay)
+        for r in resp.get("results", []):
+            if not r.get("url"):
+                continue
+            ingest.ingest_signal(conn, Signal(
+                source="tavily", source_url=r["url"],
+                content=f"{r.get('title', '')} | {r.get('content', '')}",
+                observed_at=r.get("published_date"), founder_id=founder_id))
+            ranked.append((r.get("score", 0.0), r["url"]))
+            found.append({"title": r.get("title"), "url": r["url"],
+                          "published_date": r.get("published_date")})
+    top = [u for _, u in sorted(ranked, reverse=True)[:3]]
+    if top:
+        ext = tavily.extract(top, replay=replay)
+        for r in ext.get("results", []):
+            if r.get("raw_content"):
+                ingest.ingest_signal(conn, Signal(
+                    source="tavily", source_url=r["url"],
+                    content=r["raw_content"][:4000], founder_id=founder_id))
+    return found
+
+
+def run_diligence(conn, founder_id: str, thesis, *, replay: bool,
+                  news: bool = False) -> dict:
+    """news=True adds a Tavily news-enrichment stage before the workers run.
+    ONLY safe for novel founders (new inbound applies): it appends signals, which
+    changes worker evidence and llm cache keys. Fixture founders are always skipped,
+    and the default stays False so replay/rebuild paths are untouched."""
     lens = thesis_mod.lens(thesis)
+    if news and founder_id not in FIXTURE_FOUNDER_IDS:
+        try:
+            with instrument.stage(conn, founder_id, "news"):
+                enrich_news(conn, founder_id, replay=replay)
+        except (RuntimeError, cache.ReplayMiss) as e:
+            print(f"[news] enrichment skipped for {founder_id}: {e}")
     evidence = loader.founder_evidence(conn, founder_id)
 
     # 1. Workers extract claims (grounded, non-adversarial). Drafts without a
