@@ -579,4 +579,9 @@ if _DIST.exists():
 
     @app.get("/")
     def index():
-        return FileResponse(_DIST / "index.html")
+        # index.html references content-hashed asset filenames, so it must NOT be
+        # cached — otherwise a returning browser loads a stale index that points at
+        # an old bundle and never sees a new deploy. The hashed assets under /assets
+        # can cache forever (their name changes when content changes).
+        return FileResponse(_DIST / "index.html",
+                            headers={"Cache-Control": "no-cache, must-revalidate"})
