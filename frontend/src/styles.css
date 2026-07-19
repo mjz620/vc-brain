@@ -44,6 +44,10 @@ button { font-family: inherit; }
   background: var(--panel); padding: 22px 14px; display: flex; flex-direction: column;
   gap: 4px; position: sticky; top: 0; height: 100vh; }
 .brand { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; padding: 0 8px; }
+.brand-btn { background: none; border: none; cursor: pointer; text-align: left;
+  color: var(--fg); font-family: inherit; display: block; }
+.brand-btn:hover .dot { transform: scale(1.4); }
+.brand-btn .dot { display: inline-block; transition: transform .12s; }
 .brand .dot { color: var(--accent); }
 .side-sub { color: var(--faint); font-size: 11px; padding: 0 8px; margin-bottom: 18px; }
 .nav { display: flex; align-items: center; gap: 10px; background: none; border: none;
@@ -480,12 +484,31 @@ a.domchip:hover { text-decoration: underline; }
 .landing-stat-k { font-size: 11px; color: var(--faint); text-transform: uppercase;
   letter-spacing: 0.05em; margin-top: 3px; }
 .landing-cta { font-size: 13.5px; padding: 9px 18px; margin-bottom: 48px; }
-.landing-stages { display: flex; flex-direction: column; gap: 18px;
-  border-top: 1px solid var(--line); padding-top: 28px; }
-.landing-stage { display: flex; gap: 14px; align-items: flex-start; }
-.landing-stage-h { font-weight: 650; font-size: 13.5px; margin-bottom: 2px; }
-.landing-stage-p { color: var(--muted); font-size: 12.5px; line-height: 1.5; margin: 0;
-  max-width: 480px; }
+/* interpretable workflow — in / does / out per stage, with a mechanical vs LLM tag */
+.landing-flow { border-top: 1px solid var(--line); padding-top: 28px; }
+.landing-flow-h { font-family: var(--serif); font-size: 20px; font-weight: 600;
+  letter-spacing: -0.01em; margin-bottom: 6px; }
+.landing-flow-sub { color: var(--muted); font-size: 13px; line-height: 1.55;
+  max-width: 520px; margin: 0 0 22px; }
+.flow-stage { display: flex; gap: 14px; }
+.flow-rail { display: flex; flex-direction: column; align-items: center; }
+.flow-line { flex: 1; width: 1px; background: var(--line); margin: 4px 0; min-height: 18px; }
+.flow-body { padding-bottom: 20px; flex: 1; min-width: 0; }
+.flow-stage:last-child .flow-body { padding-bottom: 0; }
+.flow-title { display: flex; align-items: center; gap: 10px; font-weight: 650;
+  font-size: 14.5px; margin: 1px 0 8px; }
+.flow-kind { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+  font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+.flow-kind-mechanical { color: var(--accent); background: var(--accent-weak); }
+.flow-kind-llm { color: var(--mid); background: var(--mid-bg); }
+.flow-kind-both { color: var(--good); background: var(--good-bg); }
+.flow-io { display: grid; grid-template-columns: 44px 1fr; gap: 4px 12px; margin: 0; }
+.flow-io dt { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--faint); font-weight: 600; padding-top: 2px; }
+.flow-io dd { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.flow-io dd:first-of-type, .flow-io dd:last-of-type { color: var(--fg); }
+.landing-foot { color: var(--faint); font-size: 12px; line-height: 1.55; max-width: 520px;
+  margin: 26px 0 0; padding-top: 22px; border-top: 1px solid var(--line); }
 @media (max-width: 640px) { .landing-h1 { font-size: 27px; } }
 
 /* ---- contradiction spotlight --------------------------------------------- */
@@ -547,6 +570,50 @@ details.provwrap summary:hover { color: var(--fg); }
 .prov .dnode rect { fill: var(--bg2); stroke: none; }
 .prov .dnode text { fill: var(--muted); }
 .prov .prov-more { fill: var(--faint); font-size: 10.5px; }
+
+/* ---- sourcing network graph --------------------------------------------- */
+.net-graph { border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--panel); box-shadow: var(--shadow); padding: 12px;
+  margin-bottom: 20px; }
+.net-graph svg { width: 100%; min-width: 620px; height: auto; display: block; }
+.net-graph .edge { fill: none; stroke: var(--line); stroke-width: 1;
+  transition: stroke .12s, opacity .12s; }
+.net-graph .edge.hot { stroke: var(--accent); stroke-width: 1.5; }
+.net-graph .dim { opacity: 0.22; }
+.net-graph g { transition: opacity .12s; cursor: default; }
+.net-graph text { font-family: var(--mono); font-size: 10.5px; fill: var(--fg); }
+.net-graph .nnode-ch rect { fill: var(--accent-weak); stroke: var(--accent); }
+.net-graph .nnode-ch text { fill: var(--accent); font-weight: 650; }
+.net-graph .nnode-st rect { fill: var(--panel); stroke: var(--line); }
+.net-graph .nnode-inv rect { fill: var(--bg2); stroke: none; }
+.net-graph .nnode-inv text { fill: var(--muted); }
+.net-graph .tablewrap { overflow: visible; }
+.net-legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--muted); }
+.net-lg::before { content: ""; display: inline-block; width: 9px; height: 9px;
+  border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.net-lg-ch::before { background: var(--accent); }
+.net-lg-st::before { background: var(--line); border: 1px solid var(--muted); }
+.net-lg-inv::before { background: var(--bg2); border: 1px solid var(--faint); }
+.net-cols { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; align-items: start; }
+.net-ch-desc { color: var(--faint); font-size: 11px; font-weight: 400; margin-top: 2px;
+  max-width: 260px; }
+.net-num { font-variant-numeric: tabular-nums; color: var(--fg); }
+.net-notable { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.net-live { font-size: 12.5px; color: var(--good); }
+.net-gap { font-size: 12px; color: var(--mid); }
+.net-hubs { list-style: none; margin: 0; padding: 0; }
+.net-hubs li { display: grid; grid-template-columns: auto 24px 1fr; gap: 8px;
+  align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.net-hubs li:last-child { border-bottom: none; }
+.net-hub-n { font-weight: 650; font-size: 13px; }
+.net-hub-c { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 700;
+  font-size: 13px; }
+.net-hub-s { color: var(--muted); font-size: 11.5px; }
+.net-note { color: var(--faint); font-size: 11px; line-height: 1.55; max-width: 720px;
+  margin: 22px 0 0; padding-top: 16px; border-top: 1px solid var(--line); }
+@media (max-width: 900px) { .net-cols { grid-template-columns: 1fr; } }
 
 /* ---- decision badge: conditional-invest reads as conditional -------------- */
 .badge.invest-conditional { color: var(--mid); background: var(--mid-bg); }

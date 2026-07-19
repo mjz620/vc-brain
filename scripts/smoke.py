@@ -128,6 +128,13 @@ def main():
         check("methodology endpoint (per-founder)", r.status_code == 200
               and "for_founder" in r.json(), f"status={r.status_code}")
 
+    # 7. Sourcing network — reference graph + live channel yield join
+    r = c.get("/api/network")
+    nj = r.json() if r.status_code == 200 else {}
+    check("network endpoint", r.status_code == 200
+          and bool(nj.get("startups")) and bool(nj.get("channel_intelligence")),
+          f"status={r.status_code}, startups={len(nj.get('startups', []))}")
+
     print(f"\n{len(FAIL)} failure(s)" if FAIL else "\nall smoke checks passed")
     sys.exit(1 if FAIL else 0)
 

@@ -8,6 +8,7 @@ import Decision from "./pages/Decision";
 import ThesisPage from "./pages/Thesis";
 import Compare from "./pages/Compare";
 import MethodologyPage from "./pages/Methodology";
+import NetworkPage from "./pages/Network";
 import Landing from "./pages/Landing";
 
 /* Shell: left sidebar mirrors the brief's own pipeline — the nav teaches the
@@ -20,7 +21,8 @@ const PAGES = [
   { key: "decision", n: "4", label: "Memo & Decision" },
   { key: "thesis", n: "5", label: "Thesis & Query" },
   { key: "compare", n: "6", label: "Compare" },
-  { key: "methodology", n: "7", label: "Methodology" },
+  { key: "network", n: "7", label: "Sourcing Network" },
+  { key: "methodology", n: "8", label: "Methodology" },
 ] as const;
 type PageKey = (typeof PAGES)[number]["key"];
 
@@ -65,7 +67,8 @@ export default function App() {
   return (
     <div className="shell">
       <nav className="side">
-        <div className="brand">VC Brain<span className="dot">.</span></div>
+        <button className="brand brand-btn" onClick={() => setEntered(false)}
+          title="back to the overview">VC Brain<span className="dot">.</span></button>
         <div className="side-sub">evidence-first venture pipeline</div>
         {PAGES.map((p) => (
           <button key={p.key} className={`nav ${page === p.key ? "on" : ""}`}
@@ -102,6 +105,7 @@ export default function App() {
             refreshTheses={refreshTheses} openFounder={openDecision} />
         )}
         {page === "compare" && <Compare thesis={thesis} openFounder={openDecision} />}
+        {page === "network" && <NetworkPage />}
         {page === "methodology" && <MethodologyPage />}
       </main>
     </div>

@@ -193,6 +193,25 @@ export interface Methodology {
     claim_count: number; signal_count: number;
   };
 }
+export interface RefStartup {
+  name: string; sector: string; channel: string; batch: string;
+  investors: string[]; outcome: string; founded: number;
+}
+export interface ChannelIntel {
+  channel: string; description: string; historical_successes: number;
+  notable: string[]; live_source: string | null;
+  live: { signals: number; resolved: number; founders: number; resolve_rate: number } | null;
+  covered_live: boolean;
+}
+export interface Network {
+  note: string;
+  channels: Record<string, string>;
+  startups: RefStartup[];
+  channel_intelligence: ChannelIntel[];
+  top_investors: { name: string; count: number; startups: string[] }[];
+  underexplored_channels: string[];
+  live_channels: Record<string, { signals: number; resolved: number; founders: number; resolve_rate: number }>;
+}
 export interface Quality {
   channels: Record<string, { ingested: number; resolved: number;
     distinct_founders: number; dropped: number }>;
@@ -239,6 +258,7 @@ export const getKilled = () => j<{ id: string; reason: string }[]>("/api/killed"
 export const getSourcing = (thesis: string) =>
   j<SourcingFeed>(`/api/sourcing?thesis=${encodeURIComponent(thesis)}`);
 export const getQuality = () => j<Quality>("/api/quality");
+export const getNetwork = () => j<Network>("/api/network");
 export const getChannels = () =>
   j<{ channels: Channel[]; suggestion: string | null }>("/api/channels");
 export const getTrace = (fid: string, cid: string) =>

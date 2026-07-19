@@ -24,9 +24,11 @@ _DIST = config.ROOT / "frontend" / "dist"
 
 from .api import evidence as _evidence_api  # noqa: E402
 from .api import methodology as _methodology_api  # noqa: E402
+from .api import network as _network_api  # noqa: E402
 from .api import quality as _quality_api  # noqa: E402
 app.include_router(_evidence_api.router)
 app.include_router(_methodology_api.router)
+app.include_router(_network_api.router)
 app.include_router(_quality_api.router)
 
 

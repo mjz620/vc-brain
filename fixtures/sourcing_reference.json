@@ -1,0 +1,30 @@
+{
+  "_provenance": "Illustrative sourcing-intelligence reference: public, widely-reported facts about how notable startups first became visible (their sourcing channel / program) and who backed them early. This is NOT the app's own diligence output and NOT fabricated data about the live pipeline — it is a curated map of known public outcomes, used to reason about which sourcing channels have historically produced quality. Investor lists are early/seed-stage backers as publicly reported and are not exhaustive.",
+  "channels": {
+    "Y Combinator": "The dominant startup accelerator; batches surface founders pre-traction and are scored like any inbound application.",
+    "Thiel Fellowship": "Pays young founders to skip/leave college to build — a pure pre-track-record sourcing channel.",
+    "Academic lab spinout": "A company spun out of university research (e.g. a Berkeley/Stanford lab).",
+    "Research lab spinout": "Founders leaving a frontier industrial research lab (e.g. ex-OpenAI/DeepMind/Google Brain).",
+    "VC-incubated": "Company incubated inside a venture firm from day one."
+  },
+  "startups": [
+    { "name": "Stripe", "sector": "fintech / payments", "channel": "Y Combinator", "batch": "S09", "investors": ["Sequoia", "a16z", "Thiel"], "outcome": "decacorn (private)", "founded": 2010 },
+    { "name": "Airbnb", "sector": "marketplace", "channel": "Y Combinator", "batch": "W09", "investors": ["Sequoia"], "outcome": "IPO 2020", "founded": 2008 },
+    { "name": "Dropbox", "sector": "developer / storage", "channel": "Y Combinator", "batch": "S07", "investors": ["Sequoia"], "outcome": "IPO 2018", "founded": 2007 },
+    { "name": "Coinbase", "sector": "crypto / fintech", "channel": "Y Combinator", "batch": "S12", "investors": ["Union Square Ventures", "a16z"], "outcome": "IPO 2021", "founded": 2012 },
+    { "name": "DoorDash", "sector": "marketplace / logistics", "channel": "Y Combinator", "batch": "S13", "investors": ["Khosla Ventures", "Sequoia"], "outcome": "IPO 2020", "founded": 2013 },
+    { "name": "Instacart", "sector": "marketplace / logistics", "channel": "Y Combinator", "batch": "S12", "investors": ["Sequoia", "a16z"], "outcome": "IPO 2023", "founded": 2012 },
+    { "name": "GitLab", "sector": "developer tools", "channel": "Y Combinator", "batch": "W15", "investors": ["Khosla Ventures", "GV"], "outcome": "IPO 2021", "founded": 2011 },
+    { "name": "Brex", "sector": "fintech", "channel": "Y Combinator", "batch": "W17", "investors": ["a16z", "Ribbit Capital", "Y Combinator"], "outcome": "unicorn", "founded": 2017 },
+    { "name": "Scale AI", "sector": "ai-infra / data", "channel": "Y Combinator", "batch": "S16", "investors": ["Accel", "Index Ventures", "Founders Fund"], "outcome": "decacorn", "founded": 2016 },
+    { "name": "Retool", "sector": "developer tools", "channel": "Y Combinator", "batch": "S17", "investors": ["Sequoia"], "outcome": "unicorn", "founded": 2017 },
+    { "name": "Deel", "sector": "hr / fintech", "channel": "Y Combinator", "batch": "S19", "investors": ["a16z", "Spark Capital"], "outcome": "decacorn", "founded": 2019 },
+    { "name": "PagerDuty", "sector": "developer tools / ops", "channel": "Y Combinator", "batch": "S10", "investors": ["a16z"], "outcome": "IPO 2019", "founded": 2009 },
+    { "name": "Twitch", "sector": "media / streaming", "channel": "Y Combinator", "batch": "W07", "investors": ["Bessemer"], "outcome": "acquired by Amazon ($970M)", "founded": 2011 },
+    { "name": "Figma", "sector": "developer tools / design", "channel": "Thiel Fellowship", "batch": "Dylan Field", "investors": ["Index Ventures", "Greylock", "Sequoia"], "outcome": "~$20B (Adobe deal terminated)", "founded": 2012 },
+    { "name": "Luminar", "sector": "deep tech / autonomy", "channel": "Thiel Fellowship", "batch": "Austin Russell", "investors": ["Canvas Ventures", "GVA"], "outcome": "IPO 2020", "founded": 2012 },
+    { "name": "Databricks", "sector": "ai-infra / data", "channel": "Academic lab spinout", "batch": "UC Berkeley AMPLab", "investors": ["a16z", "NEA"], "outcome": "decacorn", "founded": 2013 },
+    { "name": "Anthropic", "sector": "ai-infra / llm", "channel": "Research lab spinout", "batch": "ex-OpenAI", "investors": ["Google", "Spark Capital", "Menlo Ventures"], "outcome": "decacorn", "founded": 2021 },
+    { "name": "Snowflake", "sector": "ai-infra / data", "channel": "VC-incubated", "batch": "Sutter Hill Ventures", "investors": ["Sutter Hill Ventures", "Sequoia"], "outcome": "IPO 2020", "founded": 2012 }
+  ]
+}
