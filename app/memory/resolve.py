@@ -4,6 +4,14 @@ A signal attaches to a founder only on co-occurrence of >=2 entity keys (handle+
 name+company, ...). Signals with fewer than 2 keys, or whose keys point at more than one
 existing founder (ambiguous same-name collisions), stay in the pool and are drop-logged
 — never dropped silently.
+
+Infrastructure domains (github.com, youtube.com, ...) identify a platform, not a
+person, so a domain key on the INFRA_DOMAINS blacklist never counts toward the
+>=2-key bar and never matches/merges founders. Simplest honest behavior: such a
+domain is discarded from the key set outright — it is not stored as a founder
+attribute either, because a platform domain asserts nothing about identity and
+storing it invites the exact false merge it caused (founder-armanified). The
+original keys, infra domain included, are preserved verbatim in the drop-log row.
 """
 import json
 import re
@@ -14,6 +22,26 @@ from .models import Founder
 
 # Priority order for choosing a founder's primary key / id.
 _PRIORITY = ["github", "hn", "arxiv", "domain", "name"]
+
+# Platform/infrastructure domains that must never act as a linking entity key.
+# Exact match against the normalized netloc (www. already stripped by domain_of).
+INFRA_DOMAINS = frozenset({
+    "github.com", "gist.github.com", "github.io", "gitlab.com", "bitbucket.org",
+    "sourceforge.net", "twitter.com", "x.com", "linkedin.com", "facebook.com",
+    "instagram.com", "tiktok.com", "threads.net", "mastodon.social", "reddit.com",
+    "medium.com", "substack.com", "dev.to", "youtube.com", "youtu.be", "twitch.tv",
+    "notion.site", "notion.so", "docs.google.com", "drive.google.com",
+    "sites.google.com", "forms.gle", "colab.research.google.com", "play.google.com",
+    "chrome.google.com", "chromewebstore.google.com", "apps.apple.com",
+    "addons.mozilla.org", "bit.ly", "t.co", "t.me", "telegram.me", "discord.gg",
+    "discord.com", "producthunt.com", "news.ycombinator.com", "huggingface.co",
+    "kaggle.com", "arxiv.org", "pypi.org", "npmjs.com",
+})
+
+
+def _linkable(kind: str, value: str) -> bool:
+    """True for keys that may link signals to founders (non-empty, not infra)."""
+    return bool(value) and not (kind == "domain" and value.lower() in INFRA_DOMAINS)
 
 
 def _slug(s: str) -> str:
@@ -36,17 +64,21 @@ def resolve(conn, items: list[dict]) -> dict:
         keys = json.loads(f["entity_keys"] or "{}")
         founders[f["id"]] = {"name": f["name"], "keys": dict(keys)}
         for t, v in keys.items():
-            if v:
+            if _linkable(t, v):  # a stored infra domain must never match/merge
                 key_index[(t, v)] = f["id"]
 
     resolutions: list[tuple[str, str, str]] = []
     dropped: list[tuple[str, str]] = []
 
     for it in items:
-        present = {t: v for t, v in it["keys"].items() if v}
+        raw = {t: v for t, v in it["keys"].items() if v}
+        present = {t: v for t, v in raw.items() if _linkable(t, v)}
         if len(present) < 2:
-            dropped.append((it["signal_id"], "insufficient_entity_keys"))
-            _droplog(conn, it["signal_id"], "insufficient_entity_keys", present)
+            # If stripping an infra domain is what pushed it below the bar, say so.
+            reason = ("infra_domain_not_linking" if len(raw) >= 2 and len(raw) > len(present)
+                      else "insufficient_entity_keys")
+            dropped.append((it["signal_id"], reason))
+            _droplog(conn, it["signal_id"], reason, raw)
             continue
         matched = {key_index[(t, v)] for t, v in present.items() if (t, v) in key_index}
         if len(matched) > 1:

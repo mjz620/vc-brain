@@ -12,7 +12,8 @@ from ..memory.models import Signal
 from .http import get_text
 
 API = "http://export.arxiv.org/api/query"
-_NS = {"a": "http://www.w3.org/2005/Atom"}
+_NS = {"a": "http://www.w3.org/2005/Atom",
+       "ax": "http://arxiv.org/schemas/atom"}
 _GH = re.compile(r"github\.com/([A-Za-z0-9_-]+)")
 
 
@@ -29,7 +30,10 @@ def scan(conn, query: str, *, replay: bool, limit: int = 10) -> list[dict]:
         authors = [a.findtext("a:name", "", _NS)
                    for a in entry.findall("a:author", _NS)]
         first = authors[0] if authors else ""
-        gh = _GH.search(summary)
+        # Repo links usually live in the arxiv:comment field ("Code is available
+        # at https://github.com/..."), not the abstract — scan title+comment too.
+        comment = entry.findtext("ax:comment", "", _NS) or ""
+        gh = _GH.search(f"{summary} {comment} {title}")
         content = f"arXiv: {title} | authors={', '.join(authors)}"
         sig = Signal(source="arxiv", source_url=url, content=content,
                      observed_at=entry.findtext("a:published", None, _NS))
