@@ -49,9 +49,12 @@ typography:
     lineHeight: 1.4
     letterSpacing: "normal"
 rounded:
+  xs: "5px"
+  chip: "6px"
   sm: "8px"
   md: "12px"
   pill: "20px"
+  focus: "4px"
 spacing:
   base: "8px"
   half: "4px"
@@ -150,6 +153,10 @@ A cool, near-neutral paper base carrying one decisive blue accent and a four-col
 - **Body** (Inter 400, 14px, lh 1.55): Default UI text, table cells, descriptions. Prose blocks cap at 640px (~70ch).
 - **Label** (Inter 600, 11px, uppercase, 0.06em): Section labels, table column headers, block titles, badge text. The quiet all-caps that organizes the terminal.
 - **Data / Citation** (SFMono 500, 12px, tabular): Claim ids and inline citations like `[team-02 · 0.90 · corroborated]`. Mono signals "this is a precise identifier."
+
+### Product Density Scale
+
+The five roles above name the *intent*; a data-dense product terminal legitimately uses more steps than a brand ramp. The full functional type scale in use (all px): **28** (page title) · **27** (verdict) · **20** (rec headline) · **19** (brand) · **17** (memo heading) · **15.5** (memo body) · **14** (base UI) · **13.5 / 13 / 12.5** (dense table + control text) · **12** (citations) · **11.5 / 11 / 10.5** (labels, meta, column headers) · **9.5** (the gap micro-badge). These are intentional and on-system — density serves the task; they are not off-ramp drift.
 
 ### Named Rules
 **The Two-Voice Rule.** Serif is for reasoning a human reads (memos, titles, quotes). Sans and mono are for data and chrome. Never set a memo in sans; never set a data label in serif.
