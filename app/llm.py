@@ -26,11 +26,18 @@ def provider() -> str | None:
     return None
 
 
+# Generous connect/read timeout + retries: free-tier hosts (0.1 CPU) blow the SDK's
+# default 5s connect timeout and surface it as an opaque "APIConnectionError". An
+# explicit longer timeout with retries turns those flakes into successful calls.
+_TIMEOUT = float(os.environ.get("VC_LLM_TIMEOUT", "60"))
+_RETRIES = int(os.environ.get("VC_LLM_RETRIES", "4"))
+
+
 def _openai_call(model, system, user, schema, max_tokens):
     global _oai
     if _oai is None:
         from openai import OpenAI
-        _oai = OpenAI()
+        _oai = OpenAI(timeout=_TIMEOUT, max_retries=_RETRIES)
     completion = _oai.beta.chat.completions.parse(
         model=model,
         messages=[{"role": "system", "content": system},
@@ -45,7 +52,7 @@ def _anthropic_call(model, system, user, schema, max_tokens):
     global _ant
     if _ant is None:
         from anthropic import Anthropic
-        _ant = Anthropic()
+        _ant = Anthropic(timeout=_TIMEOUT, max_retries=_RETRIES)
     resp = _ant.messages.parse(model=model, max_tokens=max_tokens, system=system,
                                messages=[{"role": "user", "content": user}],
                                output_format=schema)
@@ -59,12 +66,25 @@ def call(tier: str, system: str, user: str, schema: Type[T], *, replay: bool,
 
     def producer():
         p = provider()
-        if p == "openai":
-            return _openai_call(config.openai_model(tier), system, user, schema, max_tokens)
-        if p == "anthropic":
-            return _anthropic_call(config.MODEL_TIERS[tier], system, user, schema, max_tokens)
-        raise RuntimeError("no LLM key set (OPENAI_API_KEY or ANTHROPIC_API_KEY) and no "
-                           "cached response for this request")
+        if p is None:
+            raise RuntimeError("no LLM key set (OPENAI_API_KEY or ANTHROPIC_API_KEY) "
+                               "and no cached response for this request")
+        try:
+            if p == "openai":
+                return _openai_call(config.openai_model(tier), system, user, schema,
+                                    max_tokens)
+            return _anthropic_call(config.MODEL_TIERS[tier], system, user, schema,
+                                   max_tokens)
+        except Exception as e:
+            # The OpenAI/Anthropic SDKs collapse network failures into an opaque
+            # "Connection error." — surface the real underlying cause (DNS, TLS,
+            # timeout, refused) so a deploy failure is diagnosable, not a mystery.
+            cause = e.__cause__ or getattr(e, "__context__", None)
+            if cause:
+                raise RuntimeError(
+                    f"{type(e).__name__}: {e} [cause: {type(cause).__name__}: "
+                    f"{cause}]") from e
+            raise
 
     data = cache.cached("llm", payload, producer, replay=replay)
     return schema(**data)
