@@ -51,44 +51,95 @@ def _signals(conn, founder_id: str) -> list[dict]:
         (founder_id, founder_id)).fetchall()]
 
 
+def _velocity(blob: str) -> tuple[float | None, str | None]:
+    m = _VELOCITY.search(blob)
+    if not m:
+        return None, None
+    commits, days = int(m.group(1)), int(m.group(2))
+    # 60 commits + 30 active days over the 6-week window saturate the dimension.
+    v = round(min(6.0, commits * 6 / 60) + min(4.0, days * 4 / 30), 1)
+    note = (f"commits_6w={commits}, active_days={days} → "
+            f"min(6, {commits}×6/60) + min(4, {days}×4/30) = {v}")
+    return v, note
+
+
+def _pull(blob: str) -> tuple[float | None, str | None]:
+    engagement = [int(x) for x in _STARS.findall(blob) + _POINTS.findall(blob)]
+    if not engagement:
+        return None, None
+    top = max(engagement)
+    p = round(min(10.0, 3 * math.log10(1 + top)), 1)
+    note = f"max(stars/points seen)={top} → min(10, 3×log₁₀(1+{top})) = {p}"
+    return p, note
+
+
+def _breadth(signals: list[dict]) -> tuple[float | None, str | None]:
+    srcs = {s["source"] for s in signals if s["source"] in _OUTBOUND}
+    if not srcs:
+        return None, None
+    b = round(min(10.0, 2 + 2 * len(srcs)), 1)
+    note = (f"{len(srcs)} distinct outbound source(s) ({', '.join(sorted(srcs))}) → "
+            f"min(10, 2+2×{len(srcs)}) = {b}")
+    return b, note
+
+
+def _integrity_and_depth(claims) -> tuple[float | None, str | None, float | None, str | None]:
+    if not claims:
+        return None, None, None, None
+    n = len(claims)
+    contradicted = sum(1 for c in claims if c.corroboration == "contradicted")
+    integrity = round(10 * (1 - contradicted / n), 1)
+    i_note = f"{contradicted}/{n} claims contradicted → 10×(1-{contradicted}/{n}) = {integrity}"
+    # verified_depth: how much of the record is externally corroborated — keeps an
+    # inbound founder's composite from collapsing to the integrity dimension alone.
+    corr = sum(1 for c in claims if c.corroboration == "corroborated")
+    depth = round(10 * corr / n, 1)
+    d_note = f"{corr}/{n} claims externally corroborated → 10×{corr}/{n} = {depth}"
+    return integrity, i_note, depth, d_note
+
+
 def dimensions(signals: list[dict], claims) -> dict[str, float | None]:
     blob = "\n".join(s["content"] for s in signals)
-
-    vel = None
-    m = _VELOCITY.search(blob)
-    if m:
-        commits, days = int(m.group(1)), int(m.group(2))
-        # 60 commits + 30 active days over the 6-week window saturate the dimension.
-        vel = round(min(6.0, commits * 6 / 60) + min(4.0, days * 4 / 30), 1)
-
-    engagement = [int(x) for x in _STARS.findall(blob) + _POINTS.findall(blob)]
-    pull = (round(min(10.0, 3 * math.log10(1 + max(engagement))), 1)
-            if engagement else None)
-
-    srcs = {s["source"] for s in signals if s["source"] in _OUTBOUND}
-    breadth = round(min(10.0, 2 + 2 * len(srcs)), 1) if srcs else None
-
-    integrity = depth = None
-    if claims:
-        contradicted = sum(1 for c in claims if c.corroboration == "contradicted")
-        integrity = round(10 * (1 - contradicted / len(claims)), 1)
-        # verified_depth: how much of the record is externally corroborated — keeps an
-        # inbound founder's composite from collapsing to the integrity dimension alone.
-        corr = sum(1 for c in claims if c.corroboration == "corroborated")
-        depth = round(10 * corr / len(claims), 1)
-
+    vel, _ = _velocity(blob)
+    pull, _ = _pull(blob)
+    breadth, _ = _breadth(signals)
+    integrity, _, depth, _ = _integrity_and_depth(claims)
     return {"execution_velocity": vel, "community_pull": pull,
             "domain_breadth": breadth, "integrity": integrity,
             "verified_depth": depth}
 
 
-def coverage_of(claims) -> float:
+def dimensions_explained(signals: list[dict], claims
+                         ) -> tuple[dict[str, float | None], dict[str, str]]:
+    """Same values as dimensions() (identical formulas, same helpers) plus a
+    human-readable derivation string per assessed dimension — the actual numbers
+    that produced it, not a paraphrase. Powers the UI's 'how is this computed' panel."""
+    blob = "\n".join(s["content"] for s in signals)
+    vel, vn = _velocity(blob)
+    pull, pn = _pull(blob)
+    breadth, bn = _breadth(signals)
+    integrity, inote, depth, dnote = _integrity_and_depth(claims)
+    dims = {"execution_velocity": vel, "community_pull": pull,
+            "domain_breadth": breadth, "integrity": integrity, "verified_depth": depth}
+    notes = {k: v for k, v in {
+        "execution_velocity": vn, "community_pull": pn, "domain_breadth": bn,
+        "integrity": inote, "verified_depth": dnote}.items() if v}
+    return dims, notes
+
+
+def coverage_explained(claims) -> tuple[float, list[dict]]:
     texts = [(c.axis, c.text.lower()) for c in claims]
+    areas = []
     hit = 0
-    for _, axes, kws in COVERAGE_AREAS:
-        if any(ax in axes or any(k in t for k in kws) for ax, t in texts):
-            hit += 1
-    return round(hit / len(COVERAGE_AREAS), 2)
+    for name, axes, kws in COVERAGE_AREAS:
+        matched = any(ax in axes or any(k in t for k in kws) for ax, t in texts)
+        hit += matched
+        areas.append({"area": name, "covered": matched})
+    return round(hit / len(COVERAGE_AREAS), 2), areas
+
+
+def coverage_of(claims) -> float:
+    return coverage_explained(claims)[0]
 
 
 def composite(dims: dict[str, float | None]) -> float | None:

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
 import type { Brief, FounderRow } from "../api";
-import { AXES, AXLABEL, Err, Meters, Skeleton, Sparkline, stanceClass, TrendGlyph } from "../components";
+import { AXES, AXLABEL, Err, InfoTip, Meters, Skeleton, Sparkline, stanceClass, TrendGlyph } from "../components";
 
 /* Page 6 — side-by-side comparison. Columns are founders; rows are the three
    independent axes (score + stance + trend — NEVER averaged or totaled),
@@ -88,7 +88,7 @@ export default function Compare({ thesis, openFounder }:
                 <tbody>
                   {AXES.map((k) => (
                     <tr key={k}>
-                      <td className="rowh">{AXLABEL[k]}</td>
+                      <td className="rowh">{AXLABEL[k]} <InfoTip kind="axis" axis={k} /></td>
                       {picked.map((f) => {
                         const a = f.axes.find((x) => x.axis === k);
                         return (
@@ -111,7 +111,7 @@ export default function Compare({ thesis, openFounder }:
                   <tr className="cmp-sep">
                     <td className="rowh">Signal / Coverage</td>
                     {picked.map((f) => (
-                      <td key={f.id}><Meters signal={f.signal} coverage={f.coverage} /></td>
+                      <td key={f.id}><Meters signal={f.signal} coverage={f.coverage} founderId={f.id} /></td>
                     ))}
                   </tr>
                   <tr>

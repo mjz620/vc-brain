@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
 import type { FounderRow } from "../api";
-import { AXES, AXLABEL, Err, Meters, Skeleton, Sparkline, stanceClass, TrendGlyph } from "../components";
+import { AXES, AXLABEL, Err, InfoTip, Meters, Skeleton, Sparkline, stanceClass, TrendGlyph } from "../components";
 
 /* Page 2 — "Three independent verdicts, never averaged." */
 export default function Screening({ thesis, openFounder }:
@@ -60,7 +60,9 @@ export default function Screening({ thesis, openFounder }:
           <table className="funnel">
             <thead>
               <tr><th>Founder</th><th>Source</th><th>Signal / Coverage</th>
-                <th>Founder</th><th>Market</th><th>Idea vs Mkt</th></tr>
+                <th>Founder <InfoTip kind="axis" axis="founder" /></th>
+                <th>Market <InfoTip kind="axis" axis="market" /></th>
+                <th>Idea vs Mkt <InfoTip kind="axis" axis="idea" /></th></tr>
             </thead>
             <tbody>
               {rest.map((f) => {
@@ -73,7 +75,7 @@ export default function Screening({ thesis, openFounder }:
                     </td>
                     <td><span className="src">{f.source}</span></td>
                     <td title={`persistent Founder Score · ${f.score_history_points} history points`}>
-                      <Meters signal={f.signal} coverage={f.coverage} />
+                      <Meters signal={f.signal} coverage={f.coverage} founderId={f.id} />
                     </td>
                     {unscreened
                       ? <td colSpan={3} className="muted">not screened under this thesis</td>
@@ -112,9 +114,9 @@ export default function Screening({ thesis, openFounder }:
 function FounderCard({ f, onOpen }: { f: FounderRow; onOpen: () => void }) {
   const ax = Object.fromEntries(f.axes.map((a) => [a.axis, a]));
   return (
-    <button className="card" onClick={onOpen}>
+    <div className="card">
       <div className="top">
-        <span className="name">{f.name}</span>
+        <button className="rowlink name" onClick={onOpen}>{f.name}</button>
         <span className="pill">{f.source === "deck" ? "inbound" : f.source}</span>
         {f.score_history?.length > 0 && (
           <span className="sc" title="Founder Score history — hover a point for its trigger">
@@ -127,7 +129,7 @@ function FounderCard({ f, onOpen }: { f: FounderRow; onOpen: () => void }) {
           const a = ax[k];
           return (
             <div key={k} className={`axcell ${stanceClass(a?.stance)}`}>
-              <div className="k">{AXLABEL[k]}</div>
+              <div className="k">{AXLABEL[k]} <InfoTip kind="axis" axis={k} /></div>
               <div className="v">
                 {a && a.score != null
                   ? <>{a.score}<small><TrendGlyph trend={a.trend} /> {a.stance}</small></> : "—"}
@@ -136,7 +138,7 @@ function FounderCard({ f, onOpen }: { f: FounderRow; onOpen: () => void }) {
           );
         })}
       </div>
-      <Meters signal={f.signal} coverage={f.coverage} />
-    </button>
+      <Meters signal={f.signal} coverage={f.coverage} founderId={f.id} />
+    </div>
   );
 }

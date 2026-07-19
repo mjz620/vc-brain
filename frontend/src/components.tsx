@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import * as api from "./api";
-import type { ScorePoint, Trace } from "./api";
+import type { Methodology, ScorePoint, Trace } from "./api";
 
 export const TREND: Record<string, string> = { improving: "↑", declining: "↓", stable: "→", new: "✦" };
 /* A screen reader announces a bare Unicode arrow as "upwards arrow", not "improving" —
@@ -94,17 +94,169 @@ export function Sparkline({ history, width = 96, height = 26 }:
   );
 }
 
+/* ---- InfoTip: "how is this computed" — the real formula, sourced live from
+   the backend's own constants, never a hand-typed paraphrase that could drift. */
+type InfoKind = "signal" | "coverage" | "axis" | "trust";
+export function InfoTip({ kind, axis, founderId }: {
+  kind: InfoKind; axis?: string; founderId?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [m, setM] = useState<Methodology | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (open && !m && !err) {
+      api.getMethodology(founderId).then(setM).catch((e) => setErr(e.message));
+    }
+  }, [open, founderId, m, err]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <span className="infotip" ref={ref}>
+      <button type="button" className="infotip-btn"
+        aria-label={`how is ${axis || kind} computed`} aria-expanded={open}
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setOpen((v) => !v); }}>
+        ⓘ
+      </button>
+      {open && (
+        <div className="infotip-pop" role="dialog" aria-label="scoring methodology"
+          onClick={(e) => e.stopPropagation()}>
+          {err && <Err msg={err} />}
+          {!m && !err && <Skeleton lines={3} />}
+          {m && <InfoTipBody kind={kind} axis={axis} m={m} />}
+        </div>
+      )}
+    </span>
+  );
+}
+
+function InfoTipBody({ kind, axis, m }: { kind: InfoKind; axis?: string; m: Methodology }) {
+  const forFounder = m.for_founder;
+  if (kind === "signal") {
+    const sig = m.signal;
+    const fd = forFounder?.signal.dimensions;
+    return (
+      <>
+        <div className="it-h">{sig.name}</div>
+        <p className="it-p">{sig.what_it_is}</p>
+        <div className="it-formula">{sig.formula}</div>
+        {fd ? (
+          <table className="it-table">
+            <tbody>
+              {fd.map((d) => (
+                <tr key={d.name} className={d.assessed ? "" : "muted"}>
+                  <td>{d.name.replace(/_/g, " ")}</td>
+                  <td className="it-num">{d.assessed ? d.value : "unassessed"}</td>
+                  <td className="it-num">{d.assessed ? `×${d.renormalized_weight}` : `w=${d.weight}`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <table className="it-table">
+            <tbody>
+              {Object.entries(sig.dimensions).map(([k, desc]) => (
+                <tr key={k}>
+                  <td>{k.replace(/_/g, " ")} <em>w={sig.weights[k]}</em></td>
+                  <td className="it-desc">{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {fd && (
+          <div className="it-note">
+            these are THIS founder's actual numbers — click a founder's page for the
+            per-dimension derivation shown here inline.
+          </div>
+        )}
+      </>
+    );
+  }
+  if (kind === "coverage") {
+    const cov = m.coverage;
+    const areas = forFounder?.coverage.areas;
+    return (
+      <>
+        <div className="it-h">{cov.name}</div>
+        <p className="it-p">{cov.what_it_is}</p>
+        <div className="it-formula">{cov.formula}</div>
+        <ul className="it-areas">
+          {(areas || cov.areas.map((a) => ({ area: a, covered: undefined }))).map((a) => (
+            <li key={a.area} className={a.covered === undefined ? "" : a.covered ? "good" : "bad"}>
+              {a.covered === true ? "✓ " : a.covered === false ? "✗ " : "· "}{a.area}
+            </li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+  if (kind === "trust") {
+    const t = m.trust;
+    return (
+      <>
+        <div className="it-h">{t.name}</div>
+        <p className="it-p">{t.what_it_is}</p>
+        <table className="it-table">
+          <tbody>
+            {Object.entries(t.rubric).map(([tier, val]) => (
+              <tr key={tier} className={t.contested_tiers.includes(tier) ? "" : "muted"}>
+                <td>{tier.replace(/_/g, " ")}{t.contested_tiers.includes(tier) ? " *" : ""}</td>
+                <td className="it-num">{val.toFixed(2)}</td>
+                <td className="it-desc">{t.tier_definitions[tier]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="it-note">* contested tiers go to a prosecutor→defender→judge
+          debate whose verdict overrides this rubric value.</div>
+      </>
+    );
+  }
+  // axis
+  const ax = m.axes;
+  const rub = axis ? ax.rubrics[axis] : null;
+  return (
+    <>
+      <div className="it-h">{AXLABEL[axis || ""] || ax.name} axis</div>
+      <p className="it-p">{ax.what_it_is}</p>
+      {rub && (
+        <>
+          <div className="it-note">scored by {rub.model} against this rubric:</div>
+          <pre className="it-rubric">{rub.rubric}</pre>
+        </>
+      )}
+    </>
+  );
+}
+
 /* ---- Signal / Coverage: TWO meters, deliberately never one number -------- */
-export function Meters({ signal, coverage }: { signal: number | null; coverage: number }) {
+export function Meters({ signal, coverage, founderId }: {
+  signal: number | null; coverage: number; founderId?: string;
+}) {
   return (
     <div className="meters">
       <div className="meter" title="Signal: verified-evidence Founder Score (0–10)">
-        <span className="m-k">Signal</span>
+        <span className="m-k">Signal <InfoTip kind="signal" founderId={founderId} /></span>
         <span className="m-bar"><span style={{ width: `${((signal ?? 0) / 10) * 100}%` }} /></span>
         <span className="m-v">{signal ?? "—"}<em>/10</em></span>
       </div>
       <div className="meter cov" title="Coverage: how complete the record is (0–100%)">
-        <span className="m-k">Coverage</span>
+        <span className="m-k">Coverage <InfoTip kind="coverage" founderId={founderId} /></span>
         <span className="m-bar"><span style={{ width: `${Math.round(coverage * 100)}%` }} /></span>
         <span className="m-v">{Math.round(coverage * 100)}<em>%</em></span>
       </div>
@@ -232,7 +384,7 @@ export function TracePanel({ founderId, claimId, onClose }:
             </div>
           ))}
 
-          <div className="ev-label">How trust was set</div>
+          <div className="ev-label">How trust was set <InfoTip kind="trust" /></div>
           {trace.adjudication ? (
             <div className="tr-adj">
               <p className="ev-snip">

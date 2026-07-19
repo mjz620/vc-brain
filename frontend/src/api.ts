@@ -58,6 +58,8 @@ export interface Brief {
   memo_md: string | null;
   claims: Claim[];
   score_history: ScorePoint[];
+  signal: number | null;
+  coverage: number;
 }
 export interface AskResult {
   question: string;
@@ -163,6 +165,34 @@ export interface QueryResult {
     matched_keywords: string[];
   }[];
 }
+export interface Methodology {
+  signal: {
+    name: string; what_it_is: string; formula: string;
+    weights: Record<string, number>; dimensions: Record<string, string>;
+  };
+  coverage: { name: string; what_it_is: string; formula: string; areas: string[] };
+  axes: {
+    name: string; what_it_is: string; provider: string;
+    kill_screen: { rubric: string; model: string };
+    rubrics: Record<string, { rubric: string; model: string }>;
+  };
+  trust: {
+    name: string; what_it_is: string; rubric: Record<string, number>;
+    contested_tiers: string[]; tier_definitions: Record<string, string>;
+  };
+  for_founder?: {
+    founder_id: string;
+    signal: {
+      value: number | null;
+      dimensions: {
+        name: string; value: number | null; weight: number; assessed: boolean;
+        renormalized_weight: number | null; derivation: string | null;
+      }[];
+    };
+    coverage: { value: number; areas: { area: string; covered: boolean }[] };
+    claim_count: number; signal_count: number;
+  };
+}
 export interface Outreach {
   subject: string;
   body: string;
@@ -237,6 +267,21 @@ export const postScan = (source: string, thesis: string) =>
     `/api/scan?source=${encodeURIComponent(source)}&thesis=${encodeURIComponent(thesis)}`,
     { method: "POST" },
   );
+/* The global methodology (formulas/weights/rubrics) never changes within a
+   session; a founder's breakdown only changes if their data changes. Cache both
+   so opening the info panel on 5 different founder cards doesn't re-fetch. */
+const methodologyCache = new Map<string, Promise<Methodology>>();
+export const getMethodology = (founderId?: string): Promise<Methodology> => {
+  const key = founderId || "__global__";
+  let p = methodologyCache.get(key);
+  if (!p) {
+    const qs = founderId ? `?founder_id=${encodeURIComponent(founderId)}` : "";
+    p = j<Methodology>(`/api/methodology${qs}`);
+    p.catch(() => methodologyCache.delete(key));
+    methodologyCache.set(key, p);
+  }
+  return p;
+};
 export const saveThesis = (cfg: object) =>
   j<Thesis>("/api/thesis", {
     method: "POST",

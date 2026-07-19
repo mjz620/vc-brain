@@ -82,10 +82,9 @@ select.control { padding-right: 26px; max-width: 190px; }
 
 /* ---- application cards ------------------------------------------------- */
 .apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
-.card { display: block; width: 100%; text-align: left; font: inherit; color: inherit;
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
-  padding: 16px 18px; box-shadow: var(--shadow); cursor: pointer; transition: border-color .12s, transform .12s; }
-.card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 16px 18px; box-shadow: var(--shadow); }
+.card .name { font-size: 14px; }
 .card .top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .card .name { font-weight: 650; font-size: 15px; letter-spacing: -0.01em; }
 .card .sc { margin-left: auto; text-align: right; font-size: 12px; color: var(--muted); }
@@ -156,6 +155,7 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
 .rec-card .hist .m-k { margin: 0; }
 .wwcom + .turns { margin-top: 8px; }
 .turns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+.rec-meters { max-width: 340px; margin-bottom: 10px; }
 .wwcom { color: var(--muted); font-size: 13px; }
 .wwcom b { color: var(--fg); }
 
@@ -402,6 +402,39 @@ a.domchip:hover { text-decoration: underline; }
 .meter .m-v em { font-style: normal; font-weight: 500; font-size: 10.5px; color: var(--faint); }
 .funnel .meters { min-width: 148px; gap: 12px; }
 .card .meters { margin-top: 12px; }
+
+/* ---- InfoTip: "how is this computed" ------------------------------------ */
+.infotip { position: relative; display: inline-block; }
+.infotip-btn { background: none; border: none; padding: 0; margin: 0 0 0 2px;
+  color: var(--faint); font-size: 11px; line-height: 1; cursor: pointer;
+  vertical-align: middle; }
+.infotip-btn:hover { color: var(--accent); }
+.infotip-pop { position: absolute; z-index: 20; top: 100%; left: 0; margin-top: 6px;
+  width: 320px; max-height: 360px; overflow-y: auto; background: var(--panel);
+  border: 1px solid var(--accent); border-radius: var(--r); box-shadow: var(--shadow);
+  padding: 12px 14px; text-align: left; text-transform: none; letter-spacing: normal;
+  font-weight: 400; font-family: var(--font); font-size: 12.5px; color: var(--fg);
+  line-height: 1.5; cursor: auto; }
+.it-h { font-weight: 650; font-size: 12.5px; margin-bottom: 4px; }
+.it-p { color: var(--muted); margin: 0 0 8px; }
+.it-formula { font-family: var(--mono); font-size: 11px; background: var(--bg2);
+  border-radius: var(--r-sm); padding: 6px 8px; margin-bottom: 8px; color: var(--accent); }
+.it-table { width: 100%; border-collapse: collapse; }
+.it-table td { padding: 3px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.it-table tr:last-child td { border-bottom: none; }
+.it-table tr.muted td { color: var(--faint); }
+.it-table .it-num { text-align: right; font-variant-numeric: tabular-nums;
+  font-family: var(--mono); white-space: nowrap; }
+.it-table .it-desc { color: var(--muted); font-size: 11.5px; }
+.it-table em { font-style: normal; color: var(--faint); font-size: 10.5px; margin-left: 4px; }
+.it-note { color: var(--faint); font-size: 11px; margin-top: 6px; }
+.it-areas { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 10px; }
+.it-areas li { font-size: 11.5px; padding: 1px 0; break-inside: avoid; }
+.it-areas li.good { color: var(--good); }
+.it-areas li.bad { color: var(--faint); }
+.it-rubric { font-family: var(--font); font-size: 11px; white-space: pre-wrap;
+  background: var(--bg2); border-radius: var(--r-sm); padding: 8px 10px;
+  max-height: 220px; overflow-y: auto; margin: 0; color: var(--fg); line-height: 1.5; }
 
 /* ---- contradiction spotlight --------------------------------------------- */
 .spotlight { border: 1px solid var(--bad);

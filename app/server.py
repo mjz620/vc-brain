@@ -23,8 +23,10 @@ app = FastAPI(title="VC Brain")
 _DIST = config.ROOT / "frontend" / "dist"
 
 from .api import evidence as _evidence_api  # noqa: E402
+from .api import methodology as _methodology_api  # noqa: E402
 from .api import quality as _quality_api  # noqa: E402
 app.include_router(_evidence_api.router)
+app.include_router(_methodology_api.router)
 app.include_router(_quality_api.router)
 
 
@@ -232,6 +234,9 @@ def founder(founder_id: str, thesis: str | None = None):
     brief["claims"] = claims  # for click-to-evidence
     st = founder_score.stored(conn, founder_id)
     brief["score_history"] = st["history"] if st else []
+    cur = founder_score.compute(conn, founder_id)
+    brief["signal"] = cur["score"]
+    brief["coverage"] = cur["coverage"]
     return brief
 
 

@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import * as api from "../api";
 import type { AskResult, Axis, Brief } from "../api";
 import {
-  AXES, AXLABEL, Err, FounderSwitcher, inline, Memo, ProvenanceGraph, Skeleton,
-  Sparkline, stanceClass, TracePanel, TrendGlyph,
+  AXES, AXLABEL, Err, FounderSwitcher, inline, InfoTip, Memo, Meters, ProvenanceGraph,
+  Skeleton, Sparkline, stanceClass, TracePanel, TrendGlyph,
 } from "../components";
 
 /* Page 4 — "A decision you could act on in 24h, every sentence traceable." */
@@ -86,6 +86,9 @@ export default function Decision({ thesis, founderId, founders, openFounder }: {
                 </span>
               )}
             </div>
+            <div className="rec-meters">
+              <Meters signal={brief.signal} coverage={brief.coverage} founderId={founderId} />
+            </div>
             {rec.what_would_change_our_mind ? (
               <div className="wwcom"><b>What would change our mind:</b> {rec.what_would_change_our_mind}</div>
             ) : null}
@@ -100,7 +103,7 @@ export default function Decision({ thesis, founderId, founders, openFounder }: {
 
           <div className="subgrid">
             <div className="block">
-              <h3>Axes — independent, never averaged</h3>
+              <h3>Axes — independent, never averaged <InfoTip kind="axis" /></h3>
               <div className="axes">
                 {AXES.map((k) => {
                   const a: Axis | undefined = axById[k];

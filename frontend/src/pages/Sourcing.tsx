@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import * as api from "../api";
 import type { Channel, Outreach, RunStatus, SourcedFounder, SourcingFeed } from "../api";
-import { Err, Skeleton } from "../components";
+import { Err, InfoTip, Skeleton } from "../components";
 
 const SCAN_SOURCES = ["github", "hn", "arxiv", "producthunt", "yc"];
 
@@ -96,7 +96,7 @@ export default function Sourcing({ thesis, openFounder, openMemo }:
             <div className="tablewrap">
             <table className="funnel">
               <thead>
-                <tr><th>Founder</th><th>Channels</th><th>Fit</th><th>Signal / Cov</th><th></th></tr>
+                <tr><th>Founder</th><th>Channels</th><th>Fit</th><th>Signal <InfoTip kind="signal" /> / Cov <InfoTip kind="coverage" /></th><th></th></tr>
               </thead>
               <tbody>
                 {feed.founders.slice(0, 25).map((f) => (
