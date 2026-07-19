@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import * as api from "../api";
 import type { Channel, Outreach, RunStatus, SourcedFounder, SourcingFeed } from "../api";
-import { Err, InfoTip, Skeleton } from "../components";
+import { Err, FounderPeek, InfoTip, Skeleton } from "../components";
 
 const SCAN_SOURCES = ["github", "hn", "arxiv", "producthunt", "yc"];
 
@@ -116,7 +116,10 @@ export default function Sourcing({ thesis, openFounder, openMemo }:
                       )}
                     </td>
                     <td>{f.sources.map((s) => <span key={s} className="src" style={{ marginRight: 3 }}>{s}</span>)}</td>
-                    <td className="cov">{f.thesis_topic_match} topics · {f.signal_count} sig</td>
+                    <td className="cov">
+                      <FounderPeek fid={f.id} thesis={thesis}
+                        label={<>{f.thesis_topic_match} topics · {f.signal_count} sig</>} />
+                    </td>
                     <td><b>{f.signal ?? "—"}</b> · <span className="cov">{Math.round(f.coverage * 100)}%</span></td>
                     <td>
                       <button className="minibtn" disabled={drafting === f.id}
@@ -171,6 +174,10 @@ function ScanNow({ thesis, onDone }: { thesis: string; onDone: () => void }) {
         ? `⚠ ${source}: ${n}`
         : `${n} signals fetched live from ${source} — ${r.resolved} resolved, `
           + `${r.dropped} to drop-log`
+          // name the reasons, not the raw signal ids — "why" is the useful part
+          + (r.dropped_detail?.length
+            ? ` (${[...new Set(r.dropped_detail.map((d) => d.reason))].join(", ")})`
+            : "")
           + (r.new_founders.length
             ? `; new founders: ${r.new_founders.map((f) => f.name).join(", ")}`
             : ""));
@@ -205,15 +212,23 @@ const STAGE_LABEL: Record<string, string> = {
 function ApplyForm({ openMemo }: { openMemo: (id: string) => void }) {
   const [company, setCompany] = useState("");
   const [deck, setDeck] = useState("");
+  const [mode, setMode] = useState<"paste" | "pdf">("paste");
+  const [pdf, setPdf] = useState<File | null>(null);
   const [state, setState] = useState<string | null>(null);
   const [fid, setFid] = useState<string | null>(null);
   const [run, setRun] = useState<RunStatus | null>(null);
 
+  const ready = company.trim() !== "" && (mode === "pdf" ? pdf !== null : deck.trim() !== "");
+
   const submit = async () => {
-    setState("submitting… (screening runs before this returns)");
+    setState(mode === "pdf"
+      ? "parsing deck + submitting… (screening runs before this returns)"
+      : "submitting… (screening runs before this returns)");
     setFid(null); setRun(null);
     try {
-      const r = await api.postApply(company, deck);
+      const r = mode === "pdf"
+        ? await api.postApplyPdf(company, pdf!)
+        : await api.postApply(company, deck);
       setState(r.screen_error
         ? `⚠ ${r.founder_id}: ${r.screen_error}`
         : r.killed
@@ -240,10 +255,29 @@ function ApplyForm({ openMemo }: { openMemo: (id: string) => void }) {
       </p>
       <input className="filter" placeholder="Company name" value={company}
         onChange={(e) => setCompany(e.target.value)} />
-      <textarea className="filter" rows={6} placeholder="Paste deck text / summary…"
-        value={deck} onChange={(e) => setDeck(e.target.value)} />
+      <div style={{ display: "flex", gap: 6, margin: "0 0 8px" }}>
+        {(["paste", "pdf"] as const).map((m) => (
+          <button key={m} className={`minibtn${mode === m ? " primary" : ""}`}
+            onClick={() => setMode(m)}>
+            {m === "paste" ? "Paste text" : "Upload PDF"}
+          </button>
+        ))}
+      </div>
+      {mode === "paste" ? (
+        <textarea className="filter" rows={6} placeholder="Paste deck text / summary…"
+          value={deck} onChange={(e) => setDeck(e.target.value)} />
+      ) : (
+        <>
+          <input className="filter" type="file" accept="application/pdf,.pdf"
+            onChange={(e) => setPdf(e.target.files?.[0] ?? null)} />
+          <p className="muted" style={{ margin: "0 0 8px", fontSize: 12 }}>
+            Text is extracted verbatim and stored as a self-reported signal — nothing
+            is summarized on the way in. Image-only decks are rejected, not guessed at.
+          </p>
+        </>
+      )}
       <button className="minibtn primary" onClick={submit}
-        disabled={!company.trim() || !deck.trim()}>Submit application</button>
+        disabled={!ready}>Submit application</button>
       {state && <div className="muted" style={{ marginTop: 8, fontSize: 12.5 }}>{state}</div>}
       {fid && run && (
         <div style={{ marginTop: 10 }}>

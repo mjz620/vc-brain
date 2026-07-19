@@ -23,7 +23,7 @@ _ACCENT = "#3358d4"
 
 def _styles():
     ss = getSampleStyleSheet()
-    base = ParagraphStyle("body", parent=ss["Normal"], fontName="Times-Roman",
+    base = ParagraphStyle("body", parent=ss["Normal"], fontName="Helvetica",
                           fontSize=10.5, leading=15, textColor=_INK, alignment=TA_LEFT,
                           spaceAfter=6)
     return {

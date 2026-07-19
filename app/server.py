@@ -5,15 +5,16 @@ No LLM calls except the optional NL-query endpoint (cached). Read-only over vc_b
 import json
 import threading
 from contextlib import contextmanager
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, instrument, ratelimit
+from . import config, deck_pdf, instrument, ratelimit
 from .decision import decision as dec
 from .memory import db, founder_score, ingest
 from .screening import axes as axes_mod
@@ -167,9 +168,74 @@ def scan(request: Request, source: str, topic: str | None = None,
         row = conn.execute("SELECT name FROM founders WHERE id=?", (fid,)).fetchone()
         founders.append({"id": fid, "name": row["name"] if row else fid,
                          "new_signals": n})
+    # res["dropped"] is a list[(signal_id, reason)]; the client shows a count and
+    # the reasons, so expose both instead of stringifying the raw list.
+    dropped = res["dropped"]
     return {"source": source, "topics": topics, "counts": res["counts"],
-            "resolved": res["resolved"], "dropped": res["dropped"],
+            "resolved": res["resolved"], "dropped": len(dropped),
+            "dropped_detail": [{"signal_id": sid, "reason": reason} for sid, reason in dropped],
             "new_signals": len(res["new_signal_ids"]), "new_founders": founders}
+
+
+class _FounderSummary(BaseModel):
+    headline: str   # one line: the company/product and what it does
+    summary: str    # 2-3 sentences on their startup work, grounded in the signals
+
+
+# Embedded minimal default (promptlib scaffolding); mingjia owns the tuned override
+# at prompts/founder_summary.md.
+_SUMMARY_DEFAULT = (
+    "You are a venture analyst. From a founder's raw public signals (GitHub, Hacker "
+    "News, arXiv, Product Hunt, YC, or an inbound deck), describe WHAT they are building "
+    "in plain, concrete language grounded ONLY in the signals provided.\n"
+    "Return `headline`: one line naming the product/company and what it does. Return "
+    "`summary`: 2-3 sentences on their startup work — the problem, the product, and any "
+    "traction or technical angle visible in the signals.\n"
+    "Do not invent facts, funding, customers, or metrics that are not present in the "
+    "signals. If the signals are too thin to tell, say that plainly rather than guessing."
+)
+
+
+@app.get("/api/founders/{founder_id}/summary")
+def founder_summary(founder_id: str, request: Request, thesis: str | None = None):
+    """Plain-language LLM summary of what a founder is building, grounded in their raw
+    signals — the concrete answer behind the abstract 'N topics · M sig'. Returns the
+    underlying signals too, so the summary stays checkable against its sources. Falls
+    back to signals-only (summary=null) when no LLM key/cache is available."""
+    from . import llm
+    from .promptlib import load_prompt
+    ratelimit.check("summary", request)
+    conn = _conn()
+    row = conn.execute("SELECT name FROM founders WHERE id=?", (founder_id,)).fetchone()
+    if not row:
+        raise HTTPException(404, "no such founder")
+    sigs = conn.execute(
+        "SELECT s.source, s.source_url, s.content, s.observed_at FROM signals s "
+        "LEFT JOIN resolutions r ON r.signal_id = s.id "
+        "WHERE r.founder_id = ? OR s.founder_id = ? ORDER BY s.observed_at DESC",
+        (founder_id, founder_id)).fetchall()
+    signals = [{"source": s["source"], "source_url": s["source_url"],
+                "excerpt": (s["content"] or "").strip()[:400],
+                "observed_at": s["observed_at"]} for s in sigs]
+
+    summary = None
+    if signals:
+        evidence = "\n\n".join(
+            f"[{s['source']}] {s['excerpt']}"
+            + (f"\n{s['source_url']}" if s["source_url"] else "")
+            for s in signals)
+        system = load_prompt("founder_summary", _SUMMARY_DEFAULT)
+        user = (f"Founder: {row['name']}\n\n--- Signals ---\n{evidence}\n\n"
+                "Describe what they are building.")
+        try:
+            out = llm.call("screen", system, user, _FounderSummary, replay=False,
+                           max_tokens=400)
+            summary = {"headline": out.headline, "summary": out.summary}
+        except Exception:
+            # no key + cache miss (offline demo) — the raw signals still answer the "what".
+            summary = None
+    return {"founder_id": founder_id, "name": row["name"],
+            "signal_count": len(signals), "summary": summary, "signals": signals}
 
 
 @app.get("/api/theses")
@@ -177,7 +243,9 @@ def theses():
     out = []
     for p in sorted((config.ROOT / "config").glob("thesis_*.yaml")):
         t = thesis_mod.load_thesis(p)
-        out.append({"file": f"config/{p.name}", "name": t.name})
+        # full config, not just the name: the Thesis page loads one back into the
+        # editor, so the client needs the fields it is about to edit.
+        out.append({"file": f"config/{p.name}", **asdict(t)})
     return out
 
 
@@ -413,16 +481,43 @@ def apply(body: Application, request: Request):
     lands as a self-reported signal in the same funnel as outbound. Screening runs
     synchronously; if it passes the first-pass kill screen, the FULL diligence
     pipeline runs in a background thread — poll GET /api/runs/{founder_id}."""
+    if not body.company.strip() or not body.deck_text.strip():
+        raise HTTPException(422, "company and deck_text are required — nothing else is")
+    return _intake(body.company, body.deck_text)
+
+
+@app.post("/api/apply/pdf")
+def apply_pdf(request: Request, company: str = Form(...), file: UploadFile = File(...)):
+    """Same intake, PDF instead of pasted text. The deck is parsed to plain text
+    here and then follows the identical path — extraction is the only difference,
+    so a PDF applicant is not a second-class citizen in the funnel. The filename
+    rides in source_url so provenance stays visible on the claim trail."""
+    # Parse BEFORE spending rate-limit budget: the limiter protects LLM spend, and a
+    # rejected upload costs none. Otherwise three bad files lock a judge out for an hour.
+    if not company.strip():
+        raise HTTPException(422, "company is required")
+    try:
+        deck_text = deck_pdf.extract(file.file.read(), file.filename or "deck.pdf")
+    except deck_pdf.DeckPdfError as e:
+        raise HTTPException(422, str(e)) from e
+    ratelimit.check("apply", request)
+    return _intake(company, deck_text, origin=file.filename or "deck.pdf")
+
+
+def _intake(company: str, deck_text: str, origin: str | None = None):
+    """Shared inbound funnel: store the deck as a self-reported signal, run the
+    first-pass screen synchronously, then hand off to full diligence if it lives."""
     import re as _re
 
     from .memory.models import Founder, Signal
-    if not body.company.strip() or not body.deck_text.strip():
-        raise HTTPException(422, "company and deck_text are required — nothing else is")
     conn = _conn()
-    fid = "founder-" + _re.sub(r"[^a-z0-9]+", "-", body.company.lower()).strip("-")
-    ingest.upsert_founder(conn, Founder(id=fid, name=body.company))
+    fid = "founder-" + _re.sub(r"[^a-z0-9]+", "-", company.lower()).strip("-")
+    ingest.upsert_founder(conn, Founder(id=fid, name=company))
+    # Origin varies the source_url so re-uploading the same PDF dedups against
+    # itself, while a pasted summary stays a distinct signal from the deck file.
+    url = f"application://{fid}" + (f"/{origin}" if origin else "")
     sid, inserted = ingest.ingest_signal(conn, Signal(
-        source="deck", source_url=f"application://{fid}", content=body.deck_text,
+        source="deck", source_url=url, content=deck_text,
         observed_at=config.DEMO_TODAY, founder_id=fid))
     _set_stage(fid, "ingest", "ok",
                f"signal {sid}" + (" (duplicate — deck already on file)" if not inserted else ""))
@@ -560,19 +655,50 @@ class ThesisConfig(BaseModel):
     ownership_target_pct: float
     risk_appetite: str
     topics: list[str]
+    replaces: str | None = None  # file being edited; removed when a rename moves it
+
+
+def _thesis_path(file: str) -> Path:
+    """Resolve a client-supplied thesis file. The name arrives from the browser, so
+    it must land inside config/ and look like a thesis config — nothing else."""
+    cfg_dir = (config.ROOT / "config").resolve()
+    p = (config.ROOT / file).resolve()
+    if p.parent != cfg_dir or not p.name.startswith("thesis_") or p.suffix != ".yaml":
+        raise HTTPException(400, "not a thesis config path")
+    if not p.exists():
+        raise HTTPException(404, "thesis not found")
+    return p
 
 
 @app.post("/api/thesis")
 def save_thesis(body: ThesisConfig):
     """Thesis Engine is configurable (brief FAQ 15): persist an investor-edited
-    thesis as a YAML config next to the built-ins."""
+    thesis as a YAML config next to the built-ins. Pass `replaces` to edit an
+    existing one — renaming it moves the file rather than leaving an orphan."""
     import re as _re
 
     import yaml
     slug = _re.sub(r"[^a-z0-9]+", "_", body.name.lower()).strip("_") or "custom"
     path = config.ROOT / "config" / f"thesis_{slug}.yaml"
-    path.write_text(yaml.safe_dump(body.model_dump(), sort_keys=False))
+    old = _thesis_path(body.replaces) if body.replaces else None
+    path.write_text(yaml.safe_dump(body.model_dump(exclude={"replaces"}),
+                                   sort_keys=False))
+    if old and old != path:
+        old.unlink()
     return {"file": f"config/{path.name}", "name": body.name}
+
+
+@app.delete("/api/thesis")
+def delete_thesis(file: str):
+    """Delete a thesis config. The engine always needs one lens, so the last one
+    can't go — that's a 409, not a silent no-op."""
+    path = _thesis_path(file)
+    remaining = sorted(p for p in (config.ROOT / "config").glob("thesis_*.yaml")
+                       if p != path)
+    if not remaining:
+        raise HTTPException(409, "cannot delete the last thesis — the engine needs a lens")
+    path.unlink()
+    return {"deleted": f"config/{path.name}", "next": f"config/{remaining[0].name}"}
 
 
 class AskBody(BaseModel):
@@ -620,7 +746,13 @@ def ask_memo(founder_id: str, body: AskBody, request: Request):
 @app.get("/api/killed")
 def killed():
     conn = _conn()
-    rows = conn.execute("SELECT founder_id, reason FROM kill_log GROUP BY founder_id").fetchall()
+    # One row per founder, carrying their LATEST kill reason. A bare `GROUP BY
+    # founder_id` selecting an ungrouped `reason` is legal in SQLite but Postgres
+    # rejects it, so this endpoint 500'd in deploy while the tests (SQLite) passed.
+    rows = conn.execute(
+        "SELECT DISTINCT k.founder_id, "
+        "(SELECT reason FROM kill_log k2 WHERE k2.founder_id = k.founder_id "
+        "ORDER BY logged_at DESC LIMIT 1) reason FROM kill_log k").fetchall()
     return [{"id": r["founder_id"], "reason": r["reason"]} for r in rows]
 
 

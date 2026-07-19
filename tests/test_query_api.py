@@ -71,3 +71,27 @@ def test_apply_minimum_bar_deck_plus_name(conn, monkeypatch):
                                           "deck_text": "We do X. ARR $1."}).json()
     assert dup["duplicate"] is True  # dedup holds on the apply path too
     assert client.post("/api/apply", json={"company": " ", "deck_text": ""}).status_code == 422
+
+
+def test_scan_reports_dropped_as_count_not_raw_pairs(conn, monkeypatch):
+    """Regression: resolve() returns dropped as [(signal_id, reason)], and the scan
+    endpoint used to pass that list through as `dropped`. The client interpolates it
+    into a status line, so the UI rendered 'sig-d3e9…,infra_domain_not_linking to
+    drop-log' instead of a count. `dropped` must be an int; the pairs move to
+    `dropped_detail`."""
+    from fastapi.testclient import TestClient
+
+    from app.server import app
+    from app.sources import scanner
+
+    monkeypatch.setattr(scanner, "topics_for", lambda t, topic: ["ai"])
+    monkeypatch.setattr(scanner, "run_scan", lambda *a, **k: {
+        "counts": {"hn": 25}, "resolved": 24, "new_signal_ids": [],
+        "dropped": [("sig-d3e93ca5e950", "infra_domain_not_linking")],
+    })
+    monkeypatch.setattr(scanner, "newly_resolved_founders", lambda conn, ids: [])
+
+    r = TestClient(app).post("/api/scan?source=hn").json()
+    assert r["dropped"] == 1
+    assert r["dropped_detail"] == [
+        {"signal_id": "sig-d3e93ca5e950", "reason": "infra_domain_not_linking"}]

@@ -19,25 +19,25 @@ colors:
   contradiction-bg: "#fbeae8"
 typography:
   page-title:
-    fontFamily: "Newsreader, Iowan Old Style, Palatino, Georgia, serif"
+    fontFamily: "Schibsted Grotesk, -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica Neue, sans-serif"
     fontSize: "28px"
     fontWeight: 600
     lineHeight: 1.1
     letterSpacing: "-0.01em"
   memo-body:
-    fontFamily: "Newsreader, Iowan Old Style, Palatino, Georgia, serif"
+    fontFamily: "Schibsted Grotesk, -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica Neue, sans-serif"
     fontSize: "15.5px"
     fontWeight: 400
     lineHeight: 1.7
     letterSpacing: "normal"
   body:
-    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif"
+    fontFamily: "Schibsted Grotesk, -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica Neue, sans-serif"
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.55
     letterSpacing: "normal"
   label:
-    fontFamily: "Inter, -apple-system, sans-serif"
+    fontFamily: "Schibsted Grotesk, -apple-system, sans-serif"
     fontSize: "11px"
     fontWeight: 600
     lineHeight: 1.2
@@ -95,16 +95,16 @@ components:
 
 ## 1. Overview
 
-**Creative North Star: "The Editorial Terminal"**
+**Creative North Star: "The Analyst's Terminal"**
 
-VC Brain is a Bloomberg terminal that reads like a magazine. The reasoning — memos, page titles, evidence excerpts — is set in a warm editorial serif (Newsreader) so a recommendation reads like a document an analyst would trust, while every number, score, and citation is set in tabular sans and mono so the data stays terminal-precise. The two registers coexist on purpose: analytical depth served at editorial legibility, which is the literal expression of "Notion-approachable, Bloomberg-deep." The interface is calm and confident; it never hypes, because its entire value is that the evidence holds up.
+VC Brain is a working terminal for the $100K decision. Everything a human reads — memos, page titles, evidence excerpts — and everything the system computes — scores, axes, coverage — is set in one sharp grotesque (Schibsted Grotesk), a face drawn for news and financial data: tight apertures, clean terminals, tabular figures that stay aligned in a dense axis table. A single voice is the point. An earlier version of this system split reasoning into an editorial serif against a sans UI; in practice the two registers fought each other on screen rather than reinforcing each other, and the serif made the memo read as decorative at exactly the moment it needed to read as evidence. One face, ranged across weight and size, does the hierarchy work instead. The interface is calm and confident; it never hypes, because its entire value is that the evidence holds up.
 
 The surface is flat and tonally layered — three cool near-neutrals (paper, paper-sink, panel) stack to create depth without a single decorative shadow. One accent, Evidence Blue, does all the load-bearing work: it is the color of a citation, a current selection, a primary action, and nothing else. Around it sits a strict semantic trust vocabulary — green for corroborated, amber for single-source, red for contradicted, slate for self-reported — that appears identically on every screen so the analyst learns it once. Components are crisp and tactile: thin borders at rest, a decisive accent shift and lift on interaction.
 
 This system explicitly rejects three things. It is **not consumer fintech** — no pastel rounding, no playful illustration, no Robinhood softness; this is investment-committee work. It is **not enterprise legacy** — no cluttered toolbars, dated corporate blues, or heavy chrome. And it is **not generic SaaS/AI-dashboard slop** — no purple-blue AI gradients, no gradient hero cards, no identical icon-card grids, no big-number KPI template.
 
 **Key Characteristics:**
-- Serif for reasoning, tabular sans/mono for data — the two-voice split is the identity.
+- One grotesque for everything a human reads; mono reserved for machine identifiers. Hierarchy comes from weight, size, and case — never from a second typeface.
 - Flat, tonally-layered surfaces; depth from stacked neutrals, not shadow.
 - One accent (Evidence Blue) reserved for citations, selection, and primary actions.
 - A semantic trust-tier color language, always paired with a text label.
@@ -140,18 +140,17 @@ A cool, near-neutral paper base carrying one decisive blue accent and a four-col
 
 ## 3. Typography
 
-**Display / Reasoning Font:** Newsreader (with Iowan Old Style, Palatino, Georgia fallback)
-**Body / UI Font:** Inter (with system-ui fallback)
+**Primary Font (everything a human reads):** Schibsted Grotesk (with system-ui fallback)
 **Data / Citation Font:** SFMono-Regular (with ui-monospace, JetBrains Mono, Menlo fallback)
 
-**Character:** A contrast-axis pairing, not a similar-fonts clash: a warm optical serif for anything that reads like prose (memos, page titles, evidence quotes) against a neutral grotesque for UI and a mono for identifiers. The serif makes a recommendation feel authored and considered; the sans/mono keep the data terminal-crisp. `font-variant-numeric: tabular-nums` is applied to every figure so numbers align in columns.
+**Character:** One sharp grotesque doing all the reading work, with a mono reserved strictly for machine identifiers. Schibsted Grotesk is a news-and-data face — tight apertures, decisive terminals, and figures that stay legible and aligned at 11px in the axis tables. It is serious rather than neutral: it carries enough character to feel authored without ever reading as decorative. `font-variant-numeric: tabular-nums` is applied to every figure so numbers align in columns.
 
 ### Hierarchy
-- **Page Title** (Newsreader 600, 28px, lh 1.1, -0.01em): Page headers ("Sourcing", "Memo & Decision"). Serif, so the section reads editorial.
-- **Memo Heading** (Newsreader 600, 17px): Section headings inside a memo ("## Recommendation").
-- **Memo Body** (Newsreader 400, 15.5px, lh 1.7): The memo prose itself — the one place the analyst reads at length. Kept to a comfortable measure, not full-width.
-- **Body** (Inter 400, 14px, lh 1.55): Default UI text, table cells, descriptions. Prose blocks cap at 640px (~70ch).
-- **Label** (Inter 600, 11px, uppercase, 0.06em): Section labels, table column headers, block titles, badge text. The quiet all-caps that organizes the terminal.
+- **Page Title** (Schibsted Grotesk 600, 28px, lh 1.1, -0.01em): Page headers ("Sourcing", "Memo & Decision").
+- **Memo Heading** (Schibsted Grotesk 600, 17px): Section headings inside a memo ("## Recommendation").
+- **Memo Body** (Schibsted Grotesk 400, 15.5px, lh 1.7): The memo prose itself — the one place the analyst reads at length. Kept to a comfortable measure, not full-width.
+- **Body** (Schibsted Grotesk 400, 14px, lh 1.55): Default UI text, table cells, descriptions. Prose blocks cap at 640px (~70ch).
+- **Label** (Schibsted Grotesk 600, 11px, uppercase, 0.06em): Section labels, table column headers, block titles, badge text. The quiet all-caps that organizes the terminal.
 - **Data / Citation** (SFMono 500, 12px, tabular): Claim ids and inline citations like `[team-02 · 0.90 · corroborated]`. Mono signals "this is a precise identifier."
 
 ### Product Density Scale
@@ -159,7 +158,7 @@ A cool, near-neutral paper base carrying one decisive blue accent and a four-col
 The five roles above name the *intent*; a data-dense product terminal legitimately uses more steps than a brand ramp. The full functional type scale in use (all px): **28** (page title) · **27** (verdict) · **20** (rec headline) · **19** (brand) · **17** (memo heading) · **15.5** (memo body) · **14** (base UI) · **13.5 / 13 / 12.5** (dense table + control text) · **12** (citations) · **11.5 / 11 / 10.5** (labels, meta, column headers) · **9.5** (the gap micro-badge). These are intentional and on-system — density serves the task; they are not off-ramp drift.
 
 ### Named Rules
-**The Two-Voice Rule.** Serif is for reasoning a human reads (memos, titles, quotes). Sans and mono are for data and chrome. Never set a memo in sans; never set a data label in serif.
+**The Single-Face Rule.** Schibsted Grotesk sets everything a human reads — memos, titles, labels, quotes, data alike. Mono is reserved for machine identifiers: claim ids and inline citations, where the point is that the string is exact. Do not introduce a second reading face to signal hierarchy; use weight, size, and case. No serif anywhere.
 
 ## 4. Elevation
 
@@ -203,14 +202,14 @@ Components are crisp and tactile: quiet at rest with a thin `Line` border, decis
 - **Mobile:** Below 860px the rail collapses to a horizontal wrapping bar; numbers and sub-label hide.
 
 ### Signature Component — The Evidence Rail + Citation
-The trust story made visible. Inline citations (`.cite`) are mono, Evidence-Blue-on-wash, clickable buttons embedded in serif memo prose. Clicking one opens the **Evidence Rail** (`.evidence`) — a sticky Panel bound by a full Evidence Blue border (the one place a colored border is intentional and full, never a stripe) — which shows the claim, its trust tier, the source card (domain chip, serif italic excerpt, retrieval date), and the prosecutor→defender→judge adjudication. Wide tables live inside a `.tablewrap` (`overflow-x: auto`) so the page body never scrolls sideways.
+The trust story made visible. Inline citations (`.cite`) are mono, Evidence-Blue-on-wash, clickable buttons embedded in the memo prose — the mono is what marks them as exact identifiers against the surrounding grotesque. Clicking one opens the **Evidence Rail** (`.evidence`) — a sticky Panel bound by a full Evidence Blue border (the one place a colored border is intentional and full, never a stripe) — which shows the claim, its trust tier, the source card (domain chip, italic excerpt, retrieval date), and the prosecutor→defender→judge adjudication. Wide tables live inside a `.tablewrap` (`overflow-x: auto`) so the page body never scrolls sideways.
 
 ## 6. Do's and Don'ts
 
 ### Do:
 - **Do** reserve Evidence Blue (`#3358d4`) for citations, current selection, and the one primary action per view. Its rarity is the point (The One Voice Rule).
 - **Do** keep green/amber/red/slate meaning corroborated/single-source/contradicted/self-reported on every screen, and **always pair a tier color with its text label** — the trust vocabulary must survive color-blindness and glare (WCAG-AA + colorblind-safe, per PRODUCT.md).
-- **Do** set memos, page titles, and evidence quotes in Newsreader serif; set all data, labels, and citations in Inter/mono with `tabular-nums`.
+- **Do** set memos, page titles, evidence quotes, data, and labels all in Schibsted Grotesk with `tabular-nums`; reserve mono for claim ids and inline citations.
 - **Do** show the three screening axes and the Signal/Coverage split as **separate values**, never averaged into one reassuring number.
 - **Do** render gaps and contradictions with weight — a flagged "not disclosed" or a pinned contradiction is a feature of the surface, in the brief's own words.
 - **Do** convey depth with tonal layers (Paper → Panel → Wash) and interaction with border/background shifts.

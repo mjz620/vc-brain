@@ -81,7 +81,7 @@ export default function Decision({ thesis, founderId, founders, openFounder }: {
               ) : null}
               {brief.score_history?.length > 0 && (
                 <span className="hist" title="persistent Founder Score history — append-only">
-                  <span className="m-k">F-Score</span>
+                  <span className="m-k">F-Score <InfoTip kind="fscore" founderId={founderId} /></span>
                   <Sparkline history={brief.score_history} />
                 </span>
               )}

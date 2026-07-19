@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import * as api from "./api";
-import type { Methodology, ScorePoint, Trace } from "./api";
+import type { FounderSummary, Methodology, ScorePoint, Trace } from "./api";
 
 export const TREND: Record<string, string> = { improving: "↑", declining: "↓", stable: "→", new: "✦" };
 /* A screen reader announces a bare Unicode arrow as "upwards arrow", not "improving" —
@@ -96,7 +96,7 @@ export function Sparkline({ history, width = 96, height = 26 }:
 
 /* ---- InfoTip: "how is this computed" — the real formula, sourced live from
    the backend's own constants, never a hand-typed paraphrase that could drift. */
-type InfoKind = "signal" | "coverage" | "axis" | "trust";
+type InfoKind = "signal" | "coverage" | "axis" | "trust" | "fscore";
 export function InfoTip({ kind, axis, founderId }: {
   kind: InfoKind; axis?: string; founderId?: string;
 }) {
@@ -146,6 +146,20 @@ export function InfoTip({ kind, axis, founderId }: {
 
 function InfoTipBody({ kind, axis, m }: { kind: InfoKind; axis?: string; m: Methodology }) {
   const forFounder = m.for_founder;
+  if (kind === "fscore") {
+    /* "F-Score" is the Founder Score — the same number the Signal meter shows. The
+       tooltip says so outright rather than leaving the abbreviation to be guessed. */
+    return (
+      <>
+        <InfoTipBody kind="signal" m={m} />
+        <p className="it-p"><b>F-Score = Founder Score</b>, the same value as the Signal
+          meter. The sparkline beside it is the append-only history: one point per
+          re-score, hover a point for the event that triggered it. Memory never
+          overwrites a past score, so improvement shows up as a trend rather than a
+          silently-replaced number.</p>
+      </>
+    );
+  }
   if (kind === "signal") {
     const sig = m.signal;
     const fd = forFounder?.signal.dimensions;
@@ -245,6 +259,118 @@ function InfoTipBody({ kind, axis, m }: { kind: InfoKind; axis?: string; m: Meth
 }
 
 /* ---- Signal / Coverage: TWO meters, deliberately never one number -------- */
+/* ---- FounderPeek: "what are they actually building?" — the concrete answer behind
+   an abstract cell like "2 topics · 1 sig". An LLM summary grounded in the founder's
+   raw signals, with those signals listed underneath so the summary stays checkable.
+   The trigger sits inside .tablewrap (overflow-x: auto), which would clip an absolute
+   popover — so the panel is position: fixed, placed from the trigger's rect. */
+export function FounderPeek({ fid, thesis, label, title }: {
+  fid: string; thesis: string; label: ReactNode; title?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [d, setD] = useState<FounderSummary | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open && !d && !err) {
+      api.getFounderSummary(fid, thesis).then(setD).catch((e) => setErr(e.message));
+    }
+  }, [open, fid, thesis, d, err]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!btnRef.current?.contains(t) && !popRef.current?.contains(t)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    // A fixed panel would detach from its trigger on scroll/resize — close instead.
+    const onMove = () => setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
+  }, [open]);
+
+  const toggle = () => {
+    if (open) { setOpen(false); return; }
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      const W = 380;
+      setPos({
+        top: Math.min(r.bottom + 6, window.innerHeight - 80),
+        left: Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - W - 8)),
+      });
+    }
+    setOpen(true);
+  };
+
+  return (
+    <>
+      <button type="button" ref={btnRef} className="peek-btn" aria-expanded={open}
+        title={title || "what are they building?"}
+        onClick={(e) => { e.stopPropagation(); toggle(); }}>
+        {label}
+      </button>
+      {open && pos && (
+        <div ref={popRef} className="peek-pop" role="dialog"
+          aria-label="what this founder is building"
+          style={{ top: pos.top, left: pos.left }}
+          onClick={(e) => e.stopPropagation()}>
+          {err && <Err msg={err} />}
+          {!d && !err && <Skeleton lines={3} />}
+          {d && <PeekBody d={d} />}
+        </div>
+      )}
+    </>
+  );
+}
+
+function PeekBody({ d }: { d: FounderSummary }) {
+  return (
+    <>
+      <div className="peek-name">{d.name}</div>
+      {d.summary ? (
+        <>
+          <div className="peek-headline">{d.summary.headline}</div>
+          <p className="peek-summary">{d.summary.summary}</p>
+        </>
+      ) : (
+        <p className="peek-nosum">
+          No generated summary — no LLM key set and nothing cached for this founder.
+          The raw signals below are the source record.
+        </p>
+      )}
+      <div className="peek-sig-h">
+        {d.signal_count} signal{d.signal_count === 1 ? "" : "s"} behind this
+      </div>
+      {d.signals.length === 0 && <p className="peek-nosum">No signals resolved yet.</p>}
+      <ul className="peek-sigs">
+        {d.signals.map((s, i) => (
+          <li key={i}>
+            <div className="peek-sig-top">
+              <span className="src">{s.source}</span>
+              {s.source_url && (
+                <a href={s.source_url} target="_blank" rel="noreferrer">source ↗</a>
+              )}
+            </div>
+            <div className="peek-ex">{s.excerpt}</div>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 export function Meters({ signal, coverage, founderId }: {
   signal: number | null; coverage: number; founderId?: string;
 }) {

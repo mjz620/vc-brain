@@ -72,6 +72,13 @@ export interface AskResult {
 export interface Thesis {
   file: string;
   name: string;
+  sectors: string[];
+  stage: string;
+  geography: string[];
+  check_size_usd: number;
+  ownership_target_pct: number;
+  risk_appetite: string;
+  topics: string[];
 }
 export interface SourcedFounder {
   id: string;
@@ -139,8 +146,22 @@ export interface ScanResult {
   counts: Record<string, number | string>;
   resolved: number;
   dropped: number;
+  dropped_detail: { signal_id: string; reason: string }[];
   new_signals: number;
   new_founders: { id: string; name: string; new_signals: number }[];
+}
+export interface FounderSignal {
+  source: string;
+  source_url: string | null;
+  excerpt: string;
+  observed_at: string | null;
+}
+export interface FounderSummary {
+  founder_id: string;
+  name: string;
+  signal_count: number;
+  summary: { headline: string; summary: string } | null;
+  signals: FounderSignal[];
 }
 export interface DiligenceStart {
   founder_id: string;
@@ -313,7 +334,18 @@ export const postApply = (company: string, deck_text: string) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ company, deck_text }),
   });
+/* No Content-Type header — the browser must set the multipart boundary itself. */
+export const postApplyPdf = (company: string, file: File) => {
+  const fd = new FormData();
+  fd.append("company", company);
+  fd.append("file", file);
+  return j<ApplyResult>("/api/apply/pdf", { method: "POST", body: fd });
+};
 export const getRun = (fid: string) => j<RunStatus>(`/api/runs/${fid}`);
+/* Plain-language LLM summary of what a founder is building, grounded in their raw
+   signals — the concrete answer behind "N topics · M sig". */
+export const getFounderSummary = (fid: string, thesis: string) =>
+  j<FounderSummary>(`/api/founders/${fid}/summary?thesis=${encodeURIComponent(thesis)}`);
 /* Force an already-screened founder into full diligence, overriding the kill
    screen. Same background-run contract as apply — poll getRun after. */
 export const postDiligence = (fid: string, thesis: string) =>
@@ -345,3 +377,6 @@ export const saveThesis = (cfg: object) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(cfg),
   });
+export const deleteThesis = (file: string) =>
+  j<{ deleted: string; next: string }>(
+    `/api/thesis?file=${encodeURIComponent(file)}`, { method: "DELETE" });

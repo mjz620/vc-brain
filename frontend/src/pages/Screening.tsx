@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
 import type { FounderRow } from "../api";
-import { AXES, AXLABEL, Err, InfoTip, Meters, Skeleton, Sparkline, stanceClass, TrendGlyph } from "../components";
+import { AXES, AXLABEL, Err, FounderPeek, InfoTip, Meters, Skeleton, Sparkline, stanceClass, TrendGlyph } from "../components";
 
 /* Page 2 — "Three independent verdicts, never averaged." */
 export default function Screening({ thesis, openFounder }:
@@ -73,6 +73,7 @@ export default function Screening({ thesis, openFounder }:
                   <tr key={f.id}>
                     <td className="fname">
                       <button className="rowlink" onClick={() => openFounder(f.id)}>{f.name}</button>
+                      <FounderPeek fid={f.id} thesis={thesis} label="what?" />
                     </td>
                     <td><span className="src">{f.source}</span></td>
                     <td title={`persistent Founder Score · ${f.score_history_points} history points`}>

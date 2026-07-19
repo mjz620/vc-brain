@@ -1,8 +1,10 @@
 /* ---- design system ---------------------------------------------------- */
 :root {
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  /* documents (memos, page titles, excerpts) read in serif; chrome stays Inter */
-  --serif: "Newsreader", "Iowan Old Style", "Palatino", Georgia, "Times New Roman", serif;
+  /* one voice: memos, page titles and excerpts set in the same grotesque as the
+     chrome. Schibsted Grotesk is a news/data face — tight apertures, sharp
+     terminals, tabular figures that hold up in the axis tables at 11px. */
+  --font: "Schibsted Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Helvetica Neue", sans-serif;
   --mono: "SFMono-Regular", ui-monospace, "JetBrains Mono", Menlo, monospace;
   --r: 12px; --r-sm: 8px;
   --sp: 8px;
@@ -72,7 +74,7 @@ select.control { padding-right: 26px; max-width: 190px; }
 
 /* ---- page headers ------------------------------------------------------ */
 .page-h { margin-bottom: 20px; }
-.page-h h1 { font-family: var(--serif); font-weight: 600; font-size: 28px;
+.page-h h1 { font-family: var(--font); font-weight: 600; font-size: 28px;
   letter-spacing: -0.01em; margin: 0 0 8px; }
 .h-founder { color: var(--accent); font-weight: 600; overflow-wrap: anywhere; }
 .page-sub { color: var(--muted); font-size: 13px; margin: 0; max-width: 640px; }
@@ -147,7 +149,7 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
   padding: 18px 20px; margin-bottom: 18px; box-shadow: var(--shadow); }
 /* The verdict is the hero of the page — largest element, semantic-colored, first. */
 .rec-card .verdict-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
-.verdict { font-family: var(--serif); font-size: 27px; font-weight: 600; line-height: 1;
+.verdict { font-family: var(--font); font-size: 27px; font-weight: 600; line-height: 1;
   letter-spacing: -0.01em; text-transform: capitalize; }
 .verdict.invest { color: var(--good); }
 .verdict.pass { color: var(--bad); }
@@ -199,10 +201,10 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
    unconditional base rule appearing later would otherwise beat this override. */
 .memo { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r); padding: 24px 28px; box-shadow: var(--shadow);
-  font-family: var(--serif); font-size: 15.5px; line-height: 1.7; }
-.memo h2 { font-family: var(--serif); font-size: 17px; letter-spacing: -0.01em; margin: 24px 0 8px; }
+  font-family: var(--font); font-size: 15.5px; line-height: 1.7; }
+.memo h2 { font-family: var(--font); font-size: 17px; letter-spacing: -0.01em; margin: 24px 0 8px; }
 .memo h2:first-child { margin-top: 0; }
-.memo h3 { font-family: var(--serif); font-size: 15px; margin: 16px 0 8px; }
+.memo h3 { font-family: var(--font); font-size: 15px; margin: 16px 0 8px; }
 .memo p { margin: 8px 0; } .memo li { margin: 4px 0 4px 18px; }
 .memo .memo-oli { margin: 4px 0; display: flex; gap: 7px; }
 .memo .memo-oli > b { color: var(--accent); font-variant-numeric: tabular-nums; flex-shrink: 0; }
@@ -393,7 +395,7 @@ a.domchip:hover { text-decoration: underline; }
 .domchip.deck { background: var(--mid-bg); color: var(--mid); }
 .src-date { font-size: 11px; color: var(--faint); }
 .src-title { font-weight: 600; font-size: 12.5px; margin: 8px 0 0; }
-.src-quote { font-family: var(--serif); font-style: italic; font-size: 13.5px;
+.src-quote { font-family: var(--font); font-style: italic; font-size: 13.5px;
   line-height: 1.55; color: var(--muted); margin: 8px 0 0; padding-left: 10px;
   border-left: 2px solid var(--line); }
 
@@ -424,6 +426,38 @@ a.domchip:hover { text-decoration: underline; }
   color: var(--faint); font-size: 11px; line-height: 1; cursor: pointer;
   vertical-align: middle; }
 .infotip-btn:hover { color: var(--accent); }
+/* ---- FounderPeek: "what are they building" panel ------------------------- */
+/* The trigger reads as text but is clickable — a dotted underline says so without
+   turning a data cell into a button-looking control. */
+.peek-btn { background: none; border: none; padding: 0; margin: 0; font: inherit;
+  color: inherit; cursor: pointer; text-align: left;
+  border-bottom: 1px dotted var(--faint); }
+.peek-btn:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.fname .peek-btn { margin-left: 6px; font-size: 11px; color: var(--faint); }
+/* fixed, not absolute: the trigger sits inside .tablewrap (overflow-x: auto),
+   which would clip an absolutely-positioned panel. Above .infotip-pop (z 20). */
+.peek-pop { position: fixed; z-index: 60; width: 380px; max-height: 60vh;
+  overflow-y: auto; background: var(--panel); border: 1px solid var(--accent);
+  border-radius: var(--r); box-shadow: var(--shadow); padding: 14px 16px;
+  text-align: left; font-family: var(--font); font-size: 12.5px; color: var(--fg);
+  line-height: 1.55; cursor: auto; }
+.peek-name { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--faint); font-weight: 600; margin-bottom: 6px; }
+.peek-headline { font-family: var(--font); font-size: 16px; font-weight: 600;
+  line-height: 1.3; margin-bottom: 6px; }
+.peek-summary { margin: 0 0 14px; color: var(--fg); }
+.peek-nosum { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+.peek-sig-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--faint); font-weight: 600; padding-top: 10px;
+  border-top: 1px solid var(--line); margin-bottom: 8px; }
+.peek-sigs { list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 10px; }
+.peek-sigs li { min-width: 0; }
+.peek-sig-top { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.peek-sig-top a { font-size: 11px; }
+.peek-ex { color: var(--muted); font-size: 12px; line-height: 1.5;
+  overflow-wrap: anywhere; }
+
 .infotip-pop { position: absolute; z-index: 20; top: 100%; left: 0; margin-top: 6px;
   width: 320px; max-height: 360px; overflow-y: auto; background: var(--panel);
   border: 1px solid var(--accent); border-radius: var(--r); box-shadow: var(--shadow);
@@ -453,7 +487,7 @@ a.domchip:hover { text-decoration: underline; }
 
 /* ---- Methodology page --------------------------------------------------- */
 .method-block { margin-bottom: 18px; }
-.method-block h3 { font-family: var(--serif); font-size: 17px; text-transform: none;
+.method-block h3 { font-family: var(--font); font-size: 17px; text-transform: none;
   letter-spacing: -0.01em; color: var(--fg); font-weight: 600; margin-bottom: 6px; }
 .method-what { color: var(--muted); font-size: 13px; margin: 0 0 10px; max-width: 640px; }
 .method-note { color: var(--faint); font-size: 12px; margin: 10px 0 0; max-width: 640px; }
@@ -509,7 +543,7 @@ a.domchip:hover { text-decoration: underline; }
 
 /* hero */
 .landing-hero { max-width: 660px; }
-.landing-h1 { font-family: var(--serif); font-size: clamp(2.35rem, 5.4vw, 4rem);
+.landing-h1 { font-family: var(--font); font-size: clamp(2.35rem, 5.4vw, 4rem);
   font-weight: 500; line-height: 1.06; letter-spacing: -0.02em; margin: 0 0 22px;
   color: #fff; text-wrap: balance;
   animation: l-rise 0.9s cubic-bezier(0.16,1,0.3,1) both; }
@@ -549,7 +583,7 @@ a.domchip:hover { text-decoration: underline; }
 
 /* interpretable workflow — in / does / out per stage, with a mechanical vs LLM tag */
 .landing-flow { margin-top: clamp(72px, 13vh, 128px); max-width: 900px; }
-.landing-flow-h { font-family: var(--serif); font-size: clamp(1.5rem, 2.8vw, 2rem);
+.landing-flow-h { font-family: var(--font); font-size: clamp(1.5rem, 2.8vw, 2rem);
   font-weight: 500; letter-spacing: -0.015em; margin: 0 0 8px; color: #fff; }
 .landing-flow-sub { color: var(--l-muted); font-size: 14.5px; line-height: 1.6;
   max-width: 62ch; margin: 0 0 30px; }
@@ -564,7 +598,7 @@ a.domchip:hover { text-decoration: underline; }
   display: grid; place-items: center; font-family: var(--mono); font-size: 13px;
   font-weight: 600; background: rgba(80,123,255,0.1); }
 .flow-body { flex: 1; min-width: 0; }
-.flow-title { display: flex; align-items: center; gap: 11px; font-family: var(--serif);
+.flow-title { display: flex; align-items: center; gap: 11px; font-family: var(--font);
   font-weight: 600; font-size: 18px; color: #fff; margin: 3px 0 12px; }
 .flow-kind { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.09em;
   font-weight: 700; padding: 3px 9px; border-radius: 20px; border: 1px solid transparent; }
@@ -607,7 +641,7 @@ a.domchip:hover { text-decoration: underline; }
   border-radius: var(--r); padding: 16px 20px; box-shadow: var(--shadow); }
 .ask-row { display: flex; gap: 8px; }
 .ask-row .filter { margin: 0; flex: 1; }
-.ask-a { font-family: var(--serif); font-size: 15px; line-height: 1.7; margin: 12px 0 4px; }
+.ask-a { font-family: var(--font); font-size: 15px; line-height: 1.7; margin: 12px 0 4px; }
 .ask-refused { background: var(--mid-bg); color: var(--mid); border-radius: var(--r-sm);
   padding: 8px 12px; font-size: 13px; margin-top: 12px; }
 .ask-refused .gap-badge { vertical-align: 1px; }
@@ -725,3 +759,25 @@ table.cmp td.rowh { font-size: 11px; text-transform: uppercase; letter-spacing: 
 .cmp-note { color: var(--muted); font-size: 12px; }
 /* visual seam between the 3 never-averaged axis rows and supporting metadata below */
 table.cmp .cmp-sep td { border-top: 2px solid var(--line); }
+
+/* ---- thesis list: pick / edit / delete the lens ------------------------- */
+.section-h .th-add { margin-left: auto; }
+.th-help { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; max-width: 640px; }
+.th-list { display: flex; flex-direction: column; gap: 6px; }
+.th-row { display: flex; align-items: center; gap: 8px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 10px 8px 12px; }
+.th-row.on { border-color: var(--accent); background: var(--accent-weak); }
+.th-pick { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; }
+.th-name { font-size: 14px; font-weight: 600; color: var(--fg); }
+.th-row.on .th-name { color: var(--accent); }
+.th-active { font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--accent); margin-left: 8px; }
+.th-meta { font-size: 12px; color: var(--muted); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.th-acts { display: flex; gap: 6px; flex-shrink: 0; }
+/* destructive action reads quiet until you aim at it — red is a state here, not decoration */
+.th-del { color: var(--muted); }
+.th-del:hover { border-color: var(--bad); color: var(--bad); }
+.th-editor { margin-top: 12px; }
+.th-foot { display: flex; align-items: center; gap: 8px; }
