@@ -1,5 +1,5 @@
 ---
-name: VC Brain
+name: FirstSignal
 description: Evidence-first venture sourcing & diligence engine — an editorial terminal for the $100K decision.
 colors:
   accent: "#3358d4"
@@ -91,13 +91,13 @@ components:
     padding: "8px 12px"
 ---
 
-# Design System: VC Brain
+# Design System: FirstSignal
 
 ## 1. Overview
 
 **Creative North Star: "The Analyst's Terminal"**
 
-VC Brain is a working terminal for the $100K decision. Everything a human reads — memos, page titles, evidence excerpts — and everything the system computes — scores, axes, coverage — is set in one sharp grotesque (Schibsted Grotesk), a face drawn for news and financial data: tight apertures, clean terminals, tabular figures that stay aligned in a dense axis table. A single voice is the point. An earlier version of this system split reasoning into an editorial serif against a sans UI; in practice the two registers fought each other on screen rather than reinforcing each other, and the serif made the memo read as decorative at exactly the moment it needed to read as evidence. One face, ranged across weight and size, does the hierarchy work instead. The interface is calm and confident; it never hypes, because its entire value is that the evidence holds up.
+FirstSignal is a working terminal for the $100K decision. Everything a human reads — memos, page titles, evidence excerpts — and everything the system computes — scores, axes, coverage — is set in one sharp grotesque (Schibsted Grotesk), a face drawn for news and financial data: tight apertures, clean terminals, tabular figures that stay aligned in a dense axis table. A single voice is the point. An earlier version of this system split reasoning into an editorial serif against a sans UI; in practice the two registers fought each other on screen rather than reinforcing each other, and the serif made the memo read as decorative at exactly the moment it needed to read as evidence. One face, ranged across weight and size, does the hierarchy work instead. The interface is calm and confident; it never hypes, because its entire value is that the evidence holds up.
 
 The surface is flat and tonally layered — three cool near-neutrals (paper, paper-sink, panel) stack to create depth without a single decorative shadow. One accent, Evidence Blue, does all the load-bearing work: it is the color of a citation, a current selection, a primary action, and nothing else. Around it sits a strict semantic trust vocabulary — green for corroborated, amber for single-source, red for contradicted, slate for self-reported — that appears identically on every screen so the analyst learns it once. Components are crisp and tactile: thin borders at rest, a decisive accent shift and lift on interaction.
 

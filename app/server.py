@@ -20,7 +20,7 @@ from .memory import db, founder_score, ingest
 from .screening import axes as axes_mod
 from .screening import thesis as thesis_mod
 
-app = FastAPI(title="VC Brain")
+app = FastAPI(title="FirstSignal")
 _DIST = config.ROOT / "frontend" / "dist"
 
 from .api import evidence as _evidence_api  # noqa: E402

@@ -58,8 +58,8 @@ export default function Landing({ onEnter }: { onEnter: () => void }) {
       <FlowField />
       <div className="landing-inner">
         <header className="landing-nav">
-          <BrainMark />
-          <span className="landing-wordmark">VC Brain<span className="dot">.</span></span>
+          <SignalMark />
+          <span className="landing-wordmark">FirstSignal<span className="dot">.</span></span>
         </header>
 
         <section className="landing-hero">
@@ -135,17 +135,18 @@ function Stat({ icon, v, k }: { icon: React.ReactNode; v: number; k: React.React
   );
 }
 
-/* Low-poly neural mark — nodes wired into a brain silhouette. Mirrors the favicon. */
-function BrainMark() {
+/* Signal mark — one detected point, three widening arcs: the earliest signal, before
+   the rest of the market hears it. Mirrors the favicon in index.html; the two are
+   hand-synced, so edit both together. */
+function SignalMark() {
   return (
     <svg className="landing-logo" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <path
-        d="M11 6.5C7.5 6.5 5 9 5 12c-2 .8-3 2.5-3 4.5S3 20 5 20.5c0 3 2.5 5 6 5 1.6 0 3-.6 4-1.6M11 6.5c1.4 0 3 .8 4 2.2M11 6.5c1.8-2 4.6-2 6.5-.5M21 6C24.5 6 27 8.5 27 11.5c2 .8 3 2.5 3 4.5s-1 3.7-3 4.2c0 3-2.5 5.3-6 5.3-1.6 0-3-.6-4-1.6V8.7M15 8.7v15.2"
-        stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"
-      />
-      {[[5,12],[2.8,16.5],[11,6.5],[15,8.7],[21,6],[27.2,11.5],[30,16],[9,17],[19,14],[23,20],[15,24]].map(
-        ([cx, cy], i) => <circle key={i} cx={cx} cy={cy} r="1.15" fill="currentColor" />
-      )}
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <path d="M10 16A6 6 0 0 1 16 22" />
+        <path d="M10 11A11 11 0 0 1 21 22" />
+        <path d="M10 6A16 16 0 0 1 26 22" />
+      </g>
+      <circle cx="10" cy="22" r="2.4" fill="currentColor" />
     </svg>
   );
 }

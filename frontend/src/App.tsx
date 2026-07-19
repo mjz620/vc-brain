@@ -68,8 +68,8 @@ export default function App() {
     <div className="shell">
       <nav className="side">
         <button className="brand brand-btn" onClick={() => setEntered(false)}
-          title="back to the overview">VC Brain<span className="dot">.</span></button>
-        <div className="side-sub">evidence-first venture pipeline</div>
+          title="back to the overview">FirstSignal<span className="dot">.</span></button>
+        <div className="side-sub">the VC brain for evidence-grounded founder discovery</div>
         {PAGES.map((p) => (
           <button key={p.key} className={`nav ${page === p.key ? "on" : ""}`}
             onClick={() => setPage(p.key)}>

@@ -14,7 +14,7 @@ The primary user is a venture-capital investor or analyst — a partner or assoc
 
 ## Product Purpose
 
-VC Brain is an evidence-first sourcing and diligence engine that compresses the path from first signal to investment decision. It ingests founder and company data from heterogeneous public sources, resolves and scores it, runs a transparent reasoning pipeline (screening → diligence → decision), and produces an investment memo where every claim carries a trust tier and a link to its evidence. It exists because capital today flows through networks rather than merit and diligence takes weeks; the product's reason to exist is to make a fast decision that is also an honest one. Success looks like an analyst reaching a well-founded invest/pass/conditional call in a single day, with the reasoning fully auditable.
+FirstSignal is an evidence-first sourcing and diligence engine that compresses the path from first signal to investment decision. It ingests founder and company data from heterogeneous public sources, resolves and scores it, runs a transparent reasoning pipeline (screening → diligence → decision), and produces an investment memo where every claim carries a trust tier and a link to its evidence. It exists because capital today flows through networks rather than merit and diligence takes weeks; the product's reason to exist is to make a fast decision that is also an honest one. Success looks like an analyst reaching a well-founded invest/pass/conditional call in a single day, with the reasoning fully auditable.
 
 ## Brand Personality
 
