@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import * as api from "./api";
 import type { ScorePoint, Trace } from "./api";
 
@@ -144,7 +144,10 @@ export function Memo({ md, onCite }: { md: string; onCite: (id: string) => void 
         if (t.startsWith("## ")) return <h2 key={i}>{inline(t.slice(3), onCite)}</h2>;
         if (t.startsWith("# ")) return <h2 key={i}>{inline(t.slice(2), onCite)}</h2>;
         if (t.startsWith("### ")) return <h3 key={i}>{inline(t.slice(4), onCite)}</h3>;
-        if (t.startsWith("- ")) return <li key={i}>{inline(t.slice(2), onCite)}</li>;
+        if (t.startsWith("- ") || t.startsWith("* "))
+          return <li key={i}>{inline(t.slice(2), onCite)}</li>;
+        const ol = t.match(/^(\d{1,2})\.\s+(.*)/);  // ordered list: "1. …"
+        if (ol) return <div key={i} className="memo-oli"><b>{ol[1]}.</b> {inline(ol[2], onCite)}</div>;
         if (!t) return <div key={i} className="sp" />;
         return <p key={i}>{inline(t, onCite)}</p>;
       })}
@@ -158,9 +161,14 @@ export function TracePanel({ founderId, claimId, onClose }:
   const [trace, setTrace] = useState<Trace | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [showDebate, setShowDebate] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
   useEffect(() => {
     setTrace(null); setErr(null); setShowDebate(false);
     api.getTraceCached(founderId, claimId).then(setTrace).catch((e) => setErr(e.message));
+    // On narrow screens the rail stacks out of view; bring it to the user on open.
+    if (window.innerWidth <= 860) {
+      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, [founderId, claimId]);
   // Esc closes the evidence rail — a keyboard exit from the panel.
   useEffect(() => {
@@ -170,7 +178,7 @@ export function TracePanel({ founderId, claimId, onClose }:
   }, [onClose]);
 
   return (
-    <aside className="evidence trace" role="complementary" aria-label="Evidence trace">
+    <aside className="evidence trace" role="complementary" aria-label="Evidence trace" ref={panelRef}>
       <button className="x" onClick={onClose} aria-label="Close evidence panel"
         title="Close (Esc)">×</button>
       {err && <Err msg={err} />}
@@ -290,9 +298,8 @@ export function ProvenanceGraph({ decision, turnsOn, claims, totalClaims, onOpen
   const activeDomains = new Set(
     [...activeClaims].map((id) => sourceDomain(byId.get(id)?.evidence_url).label));
   const dim = (on: boolean) => (hover && !on ? " dim" : "");
-  const decClass = decision.includes("pass") ? "pass"
-    : decision.includes("conditional") ? "conditional"
-    : decision.includes("invest") ? "invest" : "none";
+  // Exact match — decision is the invest|pass|conditional enum, not free text.
+  const decClass = ["invest", "pass", "conditional"].includes(decision) ? decision : "none";
 
   return (
     <div className="prov">

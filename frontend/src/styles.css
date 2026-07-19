@@ -70,7 +70,7 @@ select.control { padding-right: 26px; max-width: 190px; }
 .page-h { margin-bottom: 20px; }
 .page-h h1 { font-family: var(--serif); font-weight: 600; font-size: 28px;
   letter-spacing: -0.01em; margin: 0 0 8px; }
-.h-founder { color: var(--accent); font-weight: 600; }
+.h-founder { color: var(--accent); font-weight: 600; overflow-wrap: anywhere; }
 .page-sub { color: var(--muted); font-size: 13px; margin: 0; max-width: 640px; }
 .page-sub b, .page-sub em { color: var(--fg); }
 
@@ -171,10 +171,6 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
 .gaps li.gap { background: var(--mid-bg); color: var(--mid); }
 .gaps li.ok { color: var(--muted); }
 
-.strip { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.lat { background: var(--bg2); border-radius: var(--r-sm); padding: 4px 9px; font-size: 11.5px; color: var(--muted); }
-.lat b { color: var(--fg); font-variant-numeric: tabular-nums; }
-.lat.total { background: var(--accent-weak); color: var(--accent); }
 /* demoted latency footer: instrumentation, not a headline */
 .lat-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; margin-top: 28px;
   padding-top: 12px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--faint);
@@ -196,7 +192,14 @@ table.funnel { width: 100%; border-collapse: collapse; background: var(--panel);
 .memo h2:first-child { margin-top: 0; }
 .memo h3 { font-family: var(--serif); font-size: 15px; margin: 16px 0 8px; }
 .memo p { margin: 8px 0; } .memo li { margin: 4px 0 4px 18px; }
+.memo .memo-oli { margin: 4px 0; display: flex; gap: 7px; }
+.memo .memo-oli > b { color: var(--accent); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .memo .sp { height: 6px; }
+/* end-of-memo hand-off: the analyst's deliverable */
+.memo-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 18px 0 4px; padding-top: 14px; border-top: 1px solid var(--line); }
+.memo-actions .minibtn.primary { font-size: 13px; padding: 7px 14px; }
+.memo-actions-note { color: var(--faint); font-size: 11.5px; }
 .cite { background: var(--accent-weak); color: var(--accent); border: none; border-radius: 5px;
   padding: 1px 6px; margin: 0 1px; cursor: pointer; font-size: 12px; font-family: var(--mono);
   font-variant-numeric: tabular-nums; }
@@ -336,7 +339,7 @@ button.axline { background: none; border: none; font: inherit; color: inherit;
 
 /* ---- numbers are tabular everywhere ------------------------------------- */
 .card .sc, .rec-card .amt, .section-h .count, .chan-rate, .v-stat, .axcell .v,
-.axline .num, .lat, .kill, .m-v, .src-date { font-variant-numeric: tabular-nums; }
+.axline .num, .kill, .m-v, .src-date { font-variant-numeric: tabular-nums; }
 
 /* ---- wide tables scroll inside their own wrapper, never the page --------- */
 .tablewrap { overflow-x: auto; }

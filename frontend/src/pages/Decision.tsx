@@ -155,6 +155,14 @@ export default function Decision({ thesis, founderId, founders, openFounder }: {
               {brief.memo_md ? (
                 <>
                   <Memo md={brief.memo_md} onCite={setTraceId} />
+                  {/* The page ends on a confident hand-off — the analyst's deliverable. */}
+                  <div className="memo-actions">
+                    <a className="minibtn primary" download
+                      href={`/api/memo/${founderId}.pdf?thesis=${encodeURIComponent(thesis)}`}>
+                      Export IC memo (PDF) ↓
+                    </a>
+                    <span className="memo-actions-note">every claim cited · gaps flagged, never filled</span>
+                  </div>
                   <AskMemo founderId={brief.founder_id} onCite={setTraceId} />
                 </>
               ) : (
