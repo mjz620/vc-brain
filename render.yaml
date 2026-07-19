@@ -3,7 +3,10 @@ services:
     name: vc-brain
     runtime: python
     plan: free
-    buildCommand: pip install .
+    # editable install: deps get installed, but `app` is imported from the repo
+    # checkout (not copied to site-packages), so config.ROOT resolves to the repo
+    # root where frontend/dist, prompts/, config/, fixtures/ actually live.
+    buildCommand: pip install -e .
     startCommand: uvicorn app.server:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION

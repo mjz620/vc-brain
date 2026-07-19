@@ -20,8 +20,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest"]
 
-[tool.setuptools]
-packages = ["app", "app.memory"]
+[tool.setuptools.packages.find]
+include = ["app*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
